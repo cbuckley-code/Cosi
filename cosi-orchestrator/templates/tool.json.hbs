@@ -1,0 +1,24 @@
+{
+  "name": "{{toolName}}",
+  "description": "{{description}}",
+  "version": "1.0.0",
+  "tools": [
+    {{#each tools}}
+    {
+      "name": "{{name}}",
+      "description": "{{description}}",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          {{#each inputSchema.properties}}
+          "{{@key}}": { "type": "{{type}}"{{#if description}}, "description": "{{description}}"{{/if}} }{{#unless @last}},{{/unless}}
+          {{/each}}
+        },
+        "required": [{{#each inputSchema.required}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}]
+      }
+    }{{#unless @last}},{{/unless}}
+    {{/each}}
+  ],
+  "secrets": [{{#each secrets}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}],
+  "port": 3000
+}

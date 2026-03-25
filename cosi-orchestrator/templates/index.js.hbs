@@ -1,0 +1,52 @@
+import express from "express";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { z } from "zod";
+
+const app = express();
+app.use(express.json());
+
+const server = new McpServer({
+  name: "{{toolName}}",
+  version: "1.0.0"
+});
+
+// --- GENERATED TOOL IMPLEMENTATIONS GO HERE ---
+{{#each tools}}
+server.tool(
+  "{{name}}",
+  "{{description}}",
+  {
+    {{#each inputSchema.properties}}
+    {{@key}}: z.{{type}}(){{#if description}}.describe("{{description}}"){{/if}},
+    {{/each}}
+  },
+  async (params) => {
+    try {
+      // TODO: implement {{name}}
+      return { content: [{ type: "text", text: "Not implemented" }] };
+    } catch (err) {
+      return { content: [{ type: "text", text: `Error: ${err.message}` }], isError: true };
+    }
+  }
+);
+{{/each}}
+// --- END GENERATED TOOLS ---
+
+// Health check
+app.get("/health", (req, res) => res.json({ status: "ok", tool: "{{toolName}}" }));
+
+// MCP streamable HTTP endpoint
+app.post("/mcp", async (req, res) => {
+  const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+  res.writeHead(200, {
+    "Content-Type": "application/json",
+    "Transfer-Encoding": "chunked"
+  });
+  await server.connect(transport);
+  await transport.handleRequest(req, res, req.body);
+});
+
+app.listen(3000, () => {
+  console.log(`{{toolName}} MCP server listening on port 3000`);
+});

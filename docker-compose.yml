@@ -1,0 +1,52 @@
+version: "3.8"
+
+services:
+  nginx:
+    build:
+      context: ./cosi-ui
+    container_name: cosi-nginx
+    ports:
+      - "8443:443"
+    networks:
+      - cosi-network
+    depends_on:
+      - orchestrator
+    restart: unless-stopped
+
+  orchestrator:
+    build:
+      context: ./cosi-orchestrator
+    container_name: cosi-orchestrator
+    networks:
+      - cosi-network
+    volumes:
+      - ./tools:/app/tools:ro
+      - ./:/app/repo
+    environment:
+      - AWS_REGION=${AWS_REGION:-us-west-2}
+      - AWS_SECRET_PREFIX=${AWS_SECRET_PREFIX:-cosi/}
+      - BEDROCK_MODEL_ID=${BEDROCK_MODEL_ID:-anthropic.claude-sonnet-4-20250514-v1:0}
+      - GIT_REPO_URL=${GIT_REPO_URL}
+      - GIT_BRANCH=${GIT_BRANCH:-main}
+    restart: unless-stopped
+
+  builder:
+    build:
+      context: ./cosi-builder
+    container_name: cosi-builder
+    networks:
+      - cosi-network
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./:/workspace
+    privileged: true
+    environment:
+      - POLL_INTERVAL=${POLL_INTERVAL:-5000}
+    restart: unless-stopped
+
+networks:
+  cosi-network:
+    driver: bridge
+
+include:
+  - docker-compose.tools.yml

@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState, useCallback } from "react";
 import SpaceBetween from "@cloudscape-design/components/space-between";
 import Box from "@cloudscape-design/components/box";
 import Input from "@cloudscape-design/components/input";
@@ -8,6 +8,8 @@ import ChatMessage from "./ChatMessage.jsx";
 import { AttachmentChip, DragOverlay } from "./FileAttachment.jsx";
 import { useChat } from "../hooks/useChat.js";
 import { useFileDropzone } from "../hooks/useFileDropzone.js";
+import { useSpeechToText } from "../hooks/useSpeechToText.js";
+import { MicButton } from "./MicButton.jsx";
 
 export default function BuilderChat() {
   const [inputValue, setInputValue] = useState("");
@@ -27,6 +29,19 @@ export default function BuilderChat() {
     fileInputRef,
     onFileInputChange,
   } = useFileDropzone();
+
+  const handleSpeechTranscript = useCallback((oldInterim, finalText, newInterim) => {
+    setInputValue((prev) => {
+      const base = oldInterim ? prev.slice(0, prev.length - oldInterim.length) : prev;
+      if (finalText !== null && finalText !== undefined) {
+        return base + finalText + " ";
+      }
+      return base + (newInterim || "");
+    });
+  }, []);
+
+  const { isListening, isSupported, error: micError, start: startListening, stop: stopListening } =
+    useSpeechToText(handleSpeechTranscript);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -150,6 +165,13 @@ export default function BuilderChat() {
         </div>
       )}
 
+      {/* Mic error */}
+      {micError && (
+        <Box padding={{ horizontal: "l" }}>
+          <StatusIndicator type="error">{micError}</StatusIndicator>
+        </Box>
+      )}
+
       {/* Input */}
       <div className="chat-input-area">
         <SpaceBetween direction="horizontal" size="s">
@@ -160,6 +182,14 @@ export default function BuilderChat() {
             disabled={isStreaming}
             ariaLabel="Attach file"
           />
+          {isSupported && (
+            <MicButton
+              isListening={isListening}
+              disabled={isStreaming}
+              onStart={startListening}
+              onStop={stopListening}
+            />
+          )}
           <div style={{ flex: 1 }}>
             <Input
               value={inputValue}

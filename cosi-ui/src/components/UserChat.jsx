@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState, useCallback } from "react";
 import SpaceBetween from "@cloudscape-design/components/space-between";
 import Box from "@cloudscape-design/components/box";
 import Input from "@cloudscape-design/components/input";
@@ -9,13 +9,20 @@ import ToolRegistry from "./ToolRegistry.jsx";
 import { AttachmentChip, DragOverlay } from "./FileAttachment.jsx";
 import { useChat } from "../hooks/useChat.js";
 import { useFileDropzone } from "../hooks/useFileDropzone.js";
+import { useSpeechToText } from "../hooks/useSpeechToText.js";
+import { MicButton } from "./MicButton.jsx";
 
 export default function UserChat() {
   const [inputValue, setInputValue] = useState("");
   const [showTools, setShowTools] = useState(true);
   const messagesEndRef = useRef(null);
+  const inputValueRef = useRef(inputValue);
   const { messages, isStreaming, status, error, sendMessage, clearMessages } =
     useChat("/api/user/chat");
+
+  useEffect(() => {
+    inputValueRef.current = inputValue;
+  }, [inputValue]);
 
   const {
     isDragging,
@@ -28,6 +35,21 @@ export default function UserChat() {
     fileInputRef,
     onFileInputChange,
   } = useFileDropzone();
+
+  const handleSpeechTranscript = useCallback((oldInterim, finalText, newInterim) => {
+    setInputValue((prev) => {
+      const base = oldInterim ? prev.slice(0, prev.length - oldInterim.length) : prev;
+      if (finalText !== null && finalText !== undefined) {
+        // Append confirmed text with a trailing space
+        return base + finalText + " ";
+      }
+      // Replace interim placeholder
+      return base + (newInterim || "");
+    });
+  }, []);
+
+  const { isListening, isSupported, error: micError, start: startListening, stop: stopListening } =
+    useSpeechToText(handleSpeechTranscript);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -157,6 +179,13 @@ export default function UserChat() {
           </div>
         )}
 
+        {/* Mic error */}
+        {micError && (
+          <Box padding={{ horizontal: "l" }}>
+            <StatusIndicator type="error">{micError}</StatusIndicator>
+          </Box>
+        )}
+
         {/* Input */}
         <div className="chat-input-area">
           <SpaceBetween direction="horizontal" size="s">
@@ -167,6 +196,14 @@ export default function UserChat() {
               disabled={isStreaming}
               ariaLabel="Attach file"
             />
+            {isSupported && (
+              <MicButton
+                isListening={isListening}
+                disabled={isStreaming}
+                onStart={startListening}
+                onStop={stopListening}
+              />
+            )}
             <div style={{ flex: 1 }}>
               <Input
                 value={inputValue}

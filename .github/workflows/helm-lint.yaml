@@ -1,0 +1,27 @@
+name: Lint Helm Charts
+
+on:
+  pull_request:
+    paths:
+      - "helm/**"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+
+      - name: Lint chart
+        run: helm lint helm/cosi
+
+      - name: Template chart (dry-run)
+        run: |
+          helm template cosi helm/cosi \
+            --set orchestrator.git.repoUrl=https://github.com/example/cosi-tools.git \
+            --debug

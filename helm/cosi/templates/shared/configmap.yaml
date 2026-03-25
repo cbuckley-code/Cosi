@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "cosi.fullname" . }}-config
+  namespace: {{ include "cosi.namespace" . }}
+  labels:
+    {{- include "cosi.labels" . | nindent 4 }}
+data:
+  AWS_REGION: {{ .Values.orchestrator.aws.region | quote }}
+  AWS_SECRET_PREFIX: {{ .Values.orchestrator.aws.secretPrefix | quote }}
+  AWS_GOVCLOUD: {{ .Values.orchestrator.aws.govCloud | toString | quote }}
+  BEDROCK_MODEL_ID: {{ .Values.orchestrator.aws.bedrockModelId | quote }}
+  GIT_REPO_URL: {{ .Values.orchestrator.git.repoUrl | quote }}
+  GIT_BRANCH: {{ .Values.orchestrator.git.branch | quote }}
+  SESSION_TTL_SECONDS: {{ .Values.orchestrator.session.ttlSeconds | toString | quote }}
+  SESSION_COMPACTION_THRESHOLD: {{ .Values.orchestrator.session.compactionThreshold | toString | quote }}
+  REDIS_URL: {{ include "cosi.redisUrl" . | quote }}
+  POLL_INTERVAL: {{ .Values.builder.pollInterval | toString | quote }}

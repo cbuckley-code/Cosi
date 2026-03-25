@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cosi.fullname" . }}-builder
+  namespace: {{ include "cosi.namespace" . }}
+  labels:
+    {{- include "cosi.labels" . | nindent 4 }}
+    app.kubernetes.io/component: builder
+spec:
+  # Only one builder runs at a time to avoid concurrent compose/docker conflicts
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "cosi.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: builder
+  template:
+    metadata:
+      labels:
+        {{- include "cosi.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: builder
+      {{- with .Values.builder.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- include "cosi.imagePullSecrets" . | nindent 6 }}
+      serviceAccountName: {{ include "cosi.serviceAccountName" . }}
+      {{- with .Values.builder.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: builder
+          image: {{ include "cosi.image" (dict "image" .Values.builder.image "global" .Values.global "appVersion" .Chart.AppVersion) }}
+          imagePullPolicy: {{ .Values.builder.image.pullPolicy }}
+          {{- with .Values.builder.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "cosi.fullname" . }}-config
+          env:
+            - name: WORKSPACE
+              value: /workspace
+            {{- if .Values.aws.existingSecret }}
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.aws.existingSecret }}
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.aws.existingSecret }}
+                  key: AWS_SECRET_ACCESS_KEY
+            {{- end }}
+          volumeMounts:
+            - name: docker-socket
+              mountPath: /var/run/docker.sock
+            - name: workspace
+              mountPath: /workspace
+          resources:
+            {{- toYaml .Values.builder.resources | nindent 12 }}
+      volumes:
+        - name: docker-socket
+          hostPath:
+            path: {{ .Values.builder.dockerSocket.hostPath }}
+            type: Socket
+        - name: workspace
+          persistentVolumeClaim:
+            claimName: {{ .Values.builder.toolsPvc.claimName }}
+      {{- with .Values.builder.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.builder.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.builder.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

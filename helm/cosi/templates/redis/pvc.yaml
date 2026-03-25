@@ -1,0 +1,20 @@
+{{- if and .Values.redis.enabled .Values.redis.persistence.enabled -}}
+{{- $storageClass := .Values.redis.persistence.storageClass | default .Values.global.storageClass -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "cosi.fullname" . }}-redis
+  namespace: {{ include "cosi.namespace" . }}
+  labels:
+    {{- include "cosi.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.redis.persistence.size }}
+  {{- if $storageClass }}
+  storageClassName: {{ $storageClass | quote }}
+  {{- end }}
+{{- end }}

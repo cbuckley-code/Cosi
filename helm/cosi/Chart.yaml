@@ -1,0 +1,22 @@
+apiVersion: v2
+name: cosi
+description: >
+  Cosi — self-extending MCP orchestrator platform. Describe a tool in plain
+  language; Cosi generates the code, builds and deploys it as a container, and
+  exposes it through a unified MCP endpoint compatible with Claude Code, Cursor,
+  and any other MCP client.
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - mcp
+  - ai
+  - orchestrator
+  - bedrock
+  - claude
+home: https://github.com/cbuckley-code/Cosi
+sources:
+  - https://github.com/cbuckley-code/Cosi
+maintainers:
+  - name: Buckshot Technologies LLC
+icon: https://raw.githubusercontent.com/cbuckley-code/Cosi/main/cosi-ui/public/favicon.ico

@@ -1,0 +1,50 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "cosi.fullname" . }}-nginx-conf
+  namespace: {{ include "cosi.namespace" . }}
+  labels:
+    {{- include "cosi.labels" . | nindent 4 }}
+    app.kubernetes.io/component: nginx
+data:
+  default.conf: |
+    server {
+        listen 443 ssl;
+        ssl_certificate     /etc/nginx/certs/tls.crt;
+        ssl_certificate_key /etc/nginx/certs/tls.key;
+
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers HIGH:!aNULL:!MD5;
+
+        location / {
+            root /usr/share/nginx/html;
+            try_files $uri $uri/ /index.html;
+        }
+
+        location /api/ {
+            proxy_pass http://{{ include "cosi.fullname" . }}-orchestrator:{{ .Values.orchestrator.service.port }};
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_read_timeout 300s;
+        }
+
+        location /health {
+            proxy_pass http://{{ include "cosi.fullname" . }}-orchestrator:{{ .Values.orchestrator.service.port }};
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+        }
+
+        location /mcp {
+            proxy_pass http://{{ include "cosi.fullname" . }}-orchestrator:{{ .Values.orchestrator.service.port }};
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";
+            proxy_buffering off;
+            proxy_cache off;
+            proxy_read_timeout 300s;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+    }

@@ -1,0 +1,17 @@
+{{- $storageClass := .Values.builder.toolsPvc.storageClass | default .Values.global.storageClass -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.builder.toolsPvc.claimName }}
+  namespace: {{ include "cosi.namespace" . }}
+  labels:
+    {{- include "cosi.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: {{ .Values.builder.toolsPvc.size }}
+  {{- if $storageClass }}
+  storageClassName: {{ $storageClass | quote }}
+  {{- end }}

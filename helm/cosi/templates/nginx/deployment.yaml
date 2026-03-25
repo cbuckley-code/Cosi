@@ -1,0 +1,103 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cosi.fullname" . }}-nginx
+  namespace: {{ include "cosi.namespace" . }}
+  labels:
+    {{- include "cosi.labels" . | nindent 4 }}
+    app.kubernetes.io/component: nginx
+spec:
+  replicas: {{ .Values.nginx.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "cosi.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: nginx
+  template:
+    metadata:
+      labels:
+        {{- include "cosi.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: nginx
+      {{- with .Values.nginx.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- include "cosi.imagePullSecrets" . | nindent 6 }}
+      serviceAccountName: {{ include "cosi.serviceAccountName" . }}
+      {{- with .Values.nginx.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if not .Values.nginx.tls.existingSecret }}
+      initContainers:
+        - name: gen-cert
+          image: alpine/openssl:latest
+          command:
+            - sh
+            - -c
+            - |
+              if [ ! -f /certs/tls.crt ]; then
+                openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+                  -keyout /certs/tls.key \
+                  -out /certs/tls.crt \
+                  -subj "/CN={{ .Values.nginx.tls.commonName }}" \
+                  -addext "subjectAltName=DNS:{{ .Values.nginx.tls.commonName }},DNS:localhost,IP:127.0.0.1"
+              fi
+          volumeMounts:
+            - name: tls-certs
+              mountPath: /certs
+      {{- end }}
+      containers:
+        - name: nginx
+          image: {{ include "cosi.image" (dict "image" .Values.nginx.image "global" .Values.global "appVersion" .Chart.AppVersion) }}
+          imagePullPolicy: {{ .Values.nginx.image.pullPolicy }}
+          {{- with .Values.nginx.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: https
+              containerPort: 443
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: https
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            tcpSocket:
+              port: https
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            - name: nginx-conf
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: default.conf
+            - name: tls-certs
+              mountPath: /etc/nginx/certs
+              readOnly: true
+          resources:
+            {{- toYaml .Values.nginx.resources | nindent 12 }}
+      volumes:
+        - name: nginx-conf
+          configMap:
+            name: {{ include "cosi.fullname" . }}-nginx-conf
+        - name: tls-certs
+          {{- if .Values.nginx.tls.existingSecret }}
+          secret:
+            secretName: {{ .Values.nginx.tls.existingSecret }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+      {{- with .Values.nginx.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nginx.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nginx.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

@@ -1,0 +1,75 @@
+╔═══════════════════════════════════════════════════════╗
+║              Cosi MCP Orchestrator                    ║
+╚═══════════════════════════════════════════════════════╝
+
+Release: {{ .Release.Name }}
+Namespace: {{ include "cosi.namespace" . }}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Access the UI
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{{- if .Values.ingress.enabled }}
+  https://{{ .Values.ingress.host }}
+{{- else if eq .Values.nginx.service.type "LoadBalancer" }}
+  Run this command to get the external IP (may take a minute):
+    kubectl get svc {{ include "cosi.fullname" . }}-nginx -n {{ include "cosi.namespace" . }}
+{{- else }}
+  Port-forward to access locally:
+    kubectl port-forward svc/{{ include "cosi.fullname" . }}-nginx 8443:443 -n {{ include "cosi.namespace" . }}
+
+  Then open: https://localhost:8443
+{{- end }}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Connect an external MCP client (Claude Code, Cursor)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Add to your MCP client config:
+  {
+    "mcpServers": {
+      "cosi": {
+        "url": "https://<HOST>/mcp",
+        "skipTlsVerification": true
+      }
+    }
+  }
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Check status
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  kubectl get pods -n {{ include "cosi.namespace" . }} -l app.kubernetes.io/instance={{ .Release.Name }}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  View logs
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  # Orchestrator
+  kubectl logs -n {{ include "cosi.namespace" . }} -l app.kubernetes.io/component=orchestrator -f
+
+  # Builder
+  kubectl logs -n {{ include "cosi.namespace" . }} -l app.kubernetes.io/component=builder -f
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  AWS credentials
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{{- if .Values.aws.existingSecret }}
+  Using secret: {{ .Values.aws.existingSecret }}
+{{- else }}
+  ⚠  No AWS secret configured. Cosi expects credentials via IRSA,
+     instance profile, or the aws.existingSecret value.
+
+     To create a credentials secret:
+       kubectl create secret generic cosi-aws \
+         --from-literal=AWS_ACCESS_KEY_ID=<key-id> \
+         --from-literal=AWS_SECRET_ACCESS_KEY=<secret> \
+         -n {{ include "cosi.namespace" . }}
+
+     Then reinstall with: --set aws.existingSecret=cosi-aws
+{{- end }}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Documentation: https://github.com/cbuckley-code/Cosi
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

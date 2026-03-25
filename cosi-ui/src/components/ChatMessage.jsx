@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import ReactMarkdown from "react-markdown";
 import Box from "@cloudscape-design/components/box";
 import Container from "@cloudscape-design/components/container";
@@ -6,6 +6,7 @@ import ExpandableSection from "@cloudscape-design/components/expandable-section"
 import StatusIndicator from "@cloudscape-design/components/status-indicator";
 import Badge from "@cloudscape-design/components/badge";
 import SpaceBetween from "@cloudscape-design/components/space-between";
+import { MessageAttachment } from "./FileAttachment.jsx";
 
 function ToolCreatedCard({ toolCreated }) {
   return (
@@ -44,7 +45,11 @@ function ToolCallCard({ toolCall }) {
         {toolCall.output && (
           <div>
             <strong>Output:</strong>
-            <pre>{typeof toolCall.output === "string" ? toolCall.output : JSON.stringify(toolCall.output, null, 2)}</pre>
+            <pre>
+              {typeof toolCall.output === "string"
+                ? toolCall.output
+                : JSON.stringify(toolCall.output, null, 2)}
+            </pre>
           </div>
         )}
       </div>
@@ -62,18 +67,26 @@ export default function ChatMessage({ message }) {
     marginRight: isUser ? "0" : "auto",
   };
 
-  const headerText = isUser ? "You" : "Cosi";
-
   return (
     <div style={containerStyle}>
       <Container
         header={
           <Box variant="small" color="text-body-secondary">
-            {headerText}
+            {isUser ? "You" : "Cosi"}
           </Box>
         }
       >
         <SpaceBetween size="s">
+          {/* Attachments sent with this message */}
+          {message.attachments?.length > 0 && (
+            <SpaceBetween size="xs">
+              {message.attachments.map((a) => (
+                <MessageAttachment key={a.id} attachment={a} />
+              ))}
+            </SpaceBetween>
+          )}
+
+          {/* Message text */}
           {message.streaming && !message.content ? (
             <StatusIndicator type="loading">Thinking...</StatusIndicator>
           ) : (

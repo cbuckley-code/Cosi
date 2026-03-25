@@ -6,6 +6,7 @@ import { commitAndPush } from "./git-client.js";
 import { getToolList, loadRegistry } from "./registry.js";
 import { appendMessages, deleteSession } from "./session-store.js";
 import { maybeCompact, buildContextMessages } from "./session-compaction.js";
+import { buildUserContent } from "./attachments.js";
 import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -65,7 +66,7 @@ const router = express.Router();
  * Streams SSE response. Session history is managed server-side in Redis.
  */
 router.post("/chat", async (req, res) => {
-  const { message, sessionId: incomingSessionId } = req.body;
+  const { message, sessionId: incomingSessionId, attachments = [] } = req.body;
 
   if (!message) {
     return res.status(400).json({ error: "message is required" });
@@ -93,9 +94,10 @@ router.post("/chat", async (req, res) => {
 
     // Build the messages array to send to Bedrock
     const contextMessages = buildContextMessages(storedMessages, compactedSummary);
+    const userContent = buildUserContent(message, attachments);
     const messages = [
       ...contextMessages,
-      { role: "user", content: [{ text: message }] },
+      { role: "user", content: userContent },
     ];
 
     let fullResponse = "";

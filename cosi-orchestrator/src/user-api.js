@@ -4,6 +4,7 @@ import { chatStream } from "./bedrock-client.js";
 import { getAllTools } from "./registry.js";
 import { appendMessages, deleteSession } from "./session-store.js";
 import { maybeCompact, buildContextMessages } from "./session-compaction.js";
+import { buildUserContent } from "./attachments.js";
 
 const router = express.Router();
 
@@ -30,7 +31,7 @@ Use tools when they are relevant to the user's request. Always explain what you'
  * Streams SSE response. Session history is managed server-side in Redis.
  */
 router.post("/chat", async (req, res) => {
-  const { message, sessionId: incomingSessionId } = req.body;
+  const { message, sessionId: incomingSessionId, attachments = [] } = req.body;
 
   if (!message) {
     return res.status(400).json({ error: "message is required" });
@@ -55,9 +56,10 @@ router.post("/chat", async (req, res) => {
     const { messages: storedMessages, compactedSummary } = session;
 
     const contextMessages = buildContextMessages(storedMessages, compactedSummary);
+    const userContent = buildUserContent(message, attachments);
     const messages = [
       ...contextMessages,
-      { role: "user", content: [{ text: message }] },
+      { role: "user", content: userContent },
     ];
 
     let fullResponse = "";

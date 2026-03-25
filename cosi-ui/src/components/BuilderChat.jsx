@@ -5,7 +5,9 @@ import Input from "@cloudscape-design/components/input";
 import Button from "@cloudscape-design/components/button";
 import StatusIndicator from "@cloudscape-design/components/status-indicator";
 import ChatMessage from "./ChatMessage.jsx";
+import { AttachmentChip, DragOverlay } from "./FileAttachment.jsx";
 import { useChat } from "../hooks/useChat.js";
+import { useFileDropzone } from "../hooks/useFileDropzone.js";
 
 export default function BuilderChat() {
   const [inputValue, setInputValue] = useState("");
@@ -13,15 +15,28 @@ export default function BuilderChat() {
   const { messages, isStreaming, status, error, sendMessage, clearMessages } =
     useChat("/api/builder/chat");
 
-  // Auto-scroll to bottom
+  const {
+    isDragging,
+    attachments,
+    errors: dropErrors,
+    dragProps,
+    removeAttachment,
+    clearAttachments,
+    clearErrors,
+    openFilePicker,
+    fileInputRef,
+    onFileInputChange,
+  } = useFileDropzone();
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const handleSend = () => {
     if (!inputValue.trim() || isStreaming) return;
-    sendMessage(inputValue.trim());
+    sendMessage(inputValue.trim(), attachments);
     setInputValue("");
+    clearAttachments();
   };
 
   const handleKeyDown = (event) => {
@@ -30,8 +45,30 @@ export default function BuilderChat() {
     }
   };
 
+  const handleClear = () => {
+    clearMessages();
+    clearAttachments();
+  };
+
   return (
-    <div className="chat-container">
+    <div
+      className="chat-container"
+      style={{ position: "relative" }}
+      {...dragProps}
+    >
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept="image/*,.pdf,.txt,.csv,.md"
+        style={{ display: "none" }}
+        onChange={onFileInputChange}
+      />
+
+      {/* Drag overlay */}
+      <DragOverlay visible={isDragging} />
+
       {/* Header */}
       <Box padding={{ horizontal: "l", vertical: "s" }}>
         <SpaceBetween direction="horizontal" size="s" alignItems="center">
@@ -40,7 +77,7 @@ export default function BuilderChat() {
             Describe the tool you want to create
           </Box>
           {messages.length > 0 && (
-            <Button variant="link" onClick={clearMessages}>
+            <Button variant="link" onClick={handleClear}>
               Clear
             </Button>
           )}
@@ -53,12 +90,13 @@ export default function BuilderChat() {
           <Box textAlign="center" color="text-body-secondary" padding="l">
             <SpaceBetween size="s">
               <Box variant="h4">Welcome to Cosi Builder</Box>
-              <Box>
-                Describe the tool you want to create. For example:
-              </Box>
+              <Box>Describe the tool you want to create. For example:</Box>
               <Box fontStyle="italic">
                 "I want a tool that integrates with our Jira instance to search
                 and create issues using API tokens."
+              </Box>
+              <Box color="text-body-secondary" variant="small">
+                You can also drag and drop images or files to include them in your message.
               </Box>
             </SpaceBetween>
           </Box>
@@ -83,22 +121,58 @@ export default function BuilderChat() {
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Drop errors */}
+      {dropErrors.length > 0 && (
+        <Box padding={{ horizontal: "l" }}>
+          <SpaceBetween size="xxs">
+            {dropErrors.map((e, i) => (
+              <StatusIndicator key={i} type="error">
+                {e}
+              </StatusIndicator>
+            ))}
+          </SpaceBetween>
+        </Box>
+      )}
+
+      {/* Attachment preview strip */}
+      {attachments.length > 0 && (
+        <div
+          style={{
+            padding: "8px 16px 0",
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 8,
+          }}
+        >
+          {attachments.map((a) => (
+            <AttachmentChip key={a.id} attachment={a} onRemove={removeAttachment} />
+          ))}
+        </div>
+      )}
+
       {/* Input */}
       <div className="chat-input-area">
         <SpaceBetween direction="horizontal" size="s">
+          <Button
+            variant="icon"
+            iconName="upload"
+            onClick={openFilePicker}
+            disabled={isStreaming}
+            ariaLabel="Attach file"
+          />
           <div style={{ flex: 1 }}>
             <Input
               value={inputValue}
               onChange={({ detail }) => setInputValue(detail.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Describe the tool you want to build..."
+              placeholder="Describe the tool you want to build… or drop files here"
               disabled={isStreaming}
             />
           </div>
           <Button
             variant="primary"
             onClick={handleSend}
-            disabled={!inputValue.trim() || isStreaming}
+            disabled={(!inputValue.trim() && attachments.length === 0) || isStreaming}
             loading={isStreaming}
           >
             Send

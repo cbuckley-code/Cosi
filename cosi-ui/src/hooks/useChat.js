@@ -3,12 +3,9 @@ import { useState, useCallback, useRef } from "react";
 /**
  * Chat hook with server-side session management via Redis.
  *
- * The server owns conversation history. The client only tracks:
+ * The server owns conversation history. The client tracks:
  * - Rendered messages (for display)
- * - A session ID (sent with every request so the server can load the right history)
- *
- * On clear, the session is deleted server-side and a new one will be created
- * on the next message.
+ * - A session ID (sent with every request)
  *
  * @param {string} endpoint - The API endpoint to POST messages to
  */
@@ -17,16 +14,28 @@ export function useChat(endpoint) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [status, setStatus] = useState(null);
   const [error, setError] = useState(null);
-  const sessionIdRef = useRef(null); // Persists for the lifetime of the hook instance
+  const sessionIdRef = useRef(null);
   const abortRef = useRef(null);
 
+  /**
+   * Send a message, optionally with file attachments.
+   *
+   * @param {string} text
+   * @param {Array} attachments - [{ id, name, type, category, base64, previewUrl, size }]
+   */
   const sendMessage = useCallback(
-    async (text) => {
+    async (text, attachments = []) => {
       if (!text.trim() || isStreaming) return;
 
       setError(null);
 
-      const userMessage = { role: "user", content: text, id: Date.now() };
+      // Render user message with any attachments
+      const userMessage = {
+        role: "user",
+        content: text,
+        id: Date.now(),
+        attachments,
+      };
       setMessages((prev) => [...prev, userMessage]);
 
       setIsStreaming(true);
@@ -42,12 +51,22 @@ export function useChat(endpoint) {
         const controller = new AbortController();
         abortRef.current = controller;
 
+        // Serialize attachments for the API — strip previewUrl (derived from base64)
+        const serializedAttachments = attachments.map(({ id, name, type, category, base64 }) => ({
+          id,
+          name,
+          type,
+          category,
+          base64,
+        }));
+
         const response = await fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             message: text,
-            sessionId: sessionIdRef.current, // null on first message → server creates new session
+            sessionId: sessionIdRef.current,
+            attachments: serializedAttachments,
           }),
           signal: controller.signal,
         });
@@ -82,7 +101,6 @@ export function useChat(endpoint) {
             }
 
             if (event.type === "session") {
-              // Server sent back the session ID — store it for subsequent messages
               sessionIdRef.current = event.sessionId;
             } else if (event.type === "chunk") {
               setMessages((prev) =>
@@ -133,9 +151,6 @@ export function useChat(endpoint) {
     if (abortRef.current) abortRef.current.abort();
   }, []);
 
-  /**
-   * Clear messages locally and delete the session from Redis.
-   */
   const clearMessages = useCallback(async () => {
     const currentSessionId = sessionIdRef.current;
     sessionIdRef.current = null;
@@ -144,9 +159,6 @@ export function useChat(endpoint) {
     setStatus(null);
 
     if (currentSessionId) {
-      // Derive delete endpoint from chat endpoint, e.g.
-      // /api/builder/chat → /api/builder/session/<id>
-      // /api/user/chat    → /api/user/session/<id>
       const deleteEndpoint = endpoint.replace(/\/chat$/, `/session/${currentSessionId}`);
       try {
         await fetch(deleteEndpoint, { method: "DELETE" });

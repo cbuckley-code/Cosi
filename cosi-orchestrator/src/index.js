@@ -5,7 +5,8 @@ import builderApi from "./builder-api.js";
 import userApi from "./user-api.js";
 
 const app = express();
-app.use(express.json());
+// Increase limit to support base64-encoded file attachments (10MB files → ~13.3MB base64)
+app.use(express.json({ limit: "50mb" }));
 
 // Health check
 app.get("/health", (req, res) => {

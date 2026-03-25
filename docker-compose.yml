@@ -1,6 +1,21 @@
 version: "3.8"
 
 services:
+  redis:
+    image: redis:7-alpine
+    container_name: cosi-redis
+    networks:
+      - cosi-network
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
   nginx:
     build:
       context: ./cosi-ui
@@ -11,6 +26,7 @@ services:
       - cosi-network
     depends_on:
       - orchestrator
+      - redis
     restart: unless-stopped
 
   orchestrator:
@@ -28,6 +44,12 @@ services:
       - BEDROCK_MODEL_ID=${BEDROCK_MODEL_ID:-anthropic.claude-sonnet-4-20250514-v1:0}
       - GIT_REPO_URL=${GIT_REPO_URL}
       - GIT_BRANCH=${GIT_BRANCH:-main}
+      - REDIS_URL=${REDIS_URL:-redis://cosi-redis:6379}
+      - SESSION_TTL_SECONDS=${SESSION_TTL_SECONDS:-86400}
+      - SESSION_COMPACTION_THRESHOLD=${SESSION_COMPACTION_THRESHOLD:-20}
+    depends_on:
+      redis:
+        condition: service_healthy
     restart: unless-stopped
 
   builder:
@@ -47,6 +69,9 @@ services:
 networks:
   cosi-network:
     driver: bridge
+
+volumes:
+  redis-data:
 
 include:
   - docker-compose.tools.yml

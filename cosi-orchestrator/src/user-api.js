@@ -1,6 +1,9 @@
 import express from "express";
+import { v4 as uuidv4 } from "uuid";
 import { chatStream } from "./bedrock-client.js";
-import { getAllTools, callTool } from "./registry.js";
+import { getAllTools } from "./registry.js";
+import { appendMessages, deleteSession } from "./session-store.js";
+import { maybeCompact, buildContextMessages } from "./session-compaction.js";
 
 const router = express.Router();
 
@@ -23,14 +26,17 @@ Use tools when they are relevant to the user's request. Always explain what you'
 
 /**
  * POST /api/user/chat
- * Streams SSE response, handles tool calls via Bedrock tool use.
+ * Body: { message: string, sessionId?: string }
+ * Streams SSE response. Session history is managed server-side in Redis.
  */
 router.post("/chat", async (req, res) => {
-  const { message, conversationHistory = [] } = req.body;
+  const { message, sessionId: incomingSessionId } = req.body;
 
   if (!message) {
     return res.status(400).json({ error: "message is required" });
   }
+
+  const sessionId = incomingSessionId || uuidv4();
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -41,20 +47,32 @@ router.post("/chat", async (req, res) => {
     res.write(`data: ${JSON.stringify({ type, ...data })}\n\n`);
   };
 
+  sendEvent("session", { sessionId });
+
   try {
+    // Run compaction if needed, then load session
+    const session = await maybeCompact(sessionId, "user");
+    const { messages: storedMessages, compactedSummary } = session;
+
+    const contextMessages = buildContextMessages(storedMessages, compactedSummary);
     const messages = [
-      ...conversationHistory,
-      {
-        role: "user",
-        content: [{ text: message }],
-      },
+      ...contextMessages,
+      { role: "user", content: [{ text: message }] },
     ];
 
+    let fullResponse = "";
     sendEvent("start", {});
 
     for await (const chunk of chatStream(messages, buildUserSystemPrompt())) {
+      fullResponse += chunk;
       sendEvent("chunk", { text: chunk });
     }
+
+    // Persist the exchange
+    await appendMessages(sessionId, "user", [
+      { role: "user", content: [{ text: message }] },
+      { role: "assistant", content: [{ text: fullResponse }] },
+    ]);
 
     sendEvent("done", {});
     res.end();
@@ -63,6 +81,15 @@ router.post("/chat", async (req, res) => {
     sendEvent("error", { message: err.message });
     res.end();
   }
+});
+
+/**
+ * DELETE /api/user/session/:sessionId
+ * Clear a user session from Redis.
+ */
+router.delete("/session/:sessionId", async (req, res) => {
+  await deleteSession(req.params.sessionId, "user");
+  res.json({ success: true });
 });
 
 export default router;

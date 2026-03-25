@@ -1,8 +1,11 @@
 import express from "express";
+import { v4 as uuidv4 } from "uuid";
 import { chatStream } from "./bedrock-client.js";
 import { generateTool, writeToolFiles, toolExists } from "./tool-generator.js";
 import { commitAndPush } from "./git-client.js";
 import { getToolList, loadRegistry } from "./registry.js";
+import { appendMessages, deleteSession } from "./session-store.js";
+import { maybeCompact, buildContextMessages } from "./session-compaction.js";
 import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -58,15 +61,17 @@ const router = express.Router();
 
 /**
  * POST /api/builder/chat
- * Body: { message: string, conversationHistory: Message[] }
- * Streams SSE response
+ * Body: { message: string, sessionId?: string }
+ * Streams SSE response. Session history is managed server-side in Redis.
  */
 router.post("/chat", async (req, res) => {
-  const { message, conversationHistory = [] } = req.body;
+  const { message, sessionId: incomingSessionId } = req.body;
 
   if (!message) {
     return res.status(400).json({ error: "message is required" });
   }
+
+  const sessionId = incomingSessionId || uuidv4();
 
   // Set up SSE
   res.setHeader("Content-Type", "text/event-stream");
@@ -78,17 +83,22 @@ router.post("/chat", async (req, res) => {
     res.write(`data: ${JSON.stringify({ type, ...data })}\n\n`);
   };
 
+  // Always send back the session ID so the client can persist it
+  sendEvent("session", { sessionId });
+
   try {
+    // Run compaction if needed, then load the (possibly compacted) session
+    const session = await maybeCompact(sessionId, "builder");
+    const { messages: storedMessages, compactedSummary } = session;
+
+    // Build the messages array to send to Bedrock
+    const contextMessages = buildContextMessages(storedMessages, compactedSummary);
     const messages = [
-      ...conversationHistory,
-      {
-        role: "user",
-        content: [{ text: message }],
-      },
+      ...contextMessages,
+      { role: "user", content: [{ text: message }] },
     ];
 
     let fullResponse = "";
-
     sendEvent("start", {});
 
     for await (const chunk of chatStream(messages, BUILDER_SYSTEM_PROMPT)) {
@@ -96,12 +106,17 @@ router.post("/chat", async (req, res) => {
       sendEvent("chunk", { text: chunk });
     }
 
+    // Persist the new exchange to Redis
+    await appendMessages(sessionId, "builder", [
+      { role: "user", content: [{ text: message }] },
+      { role: "assistant", content: [{ text: fullResponse }] },
+    ]);
+
     // Check if the response contains GENERATE_TOOL marker
     if (fullResponse.includes("GENERATE_TOOL:")) {
       sendEvent("status", { message: "Generating tool..." });
 
       try {
-        // Extract tool requirements from the response
         const requirementsMatch = fullResponse.match(
           /GENERATE_TOOL:\s*```(?:json)?\s*([\s\S]*?)```/
         );
@@ -113,7 +128,6 @@ router.post("/chat", async (req, res) => {
         const requirements = JSON.parse(requirementsMatch[1].trim());
         const toolName = requirements.toolName;
 
-        // Check for name conflicts
         if (await toolExists(toolName)) {
           sendEvent("error", {
             message: `Tool "${toolName}" already exists. Please choose a different name.`,
@@ -125,7 +139,6 @@ router.post("/chat", async (req, res) => {
 
         sendEvent("status", { message: `Generating ${toolName} tool files...` });
 
-        // Generate the tool
         const generated = await generateTool(
           `Tool name: ${requirements.toolName}\nDescription: ${requirements.description}\nTools: ${JSON.stringify(requirements.tools, null, 2)}\nSecrets: ${JSON.stringify(requirements.secrets)}\nIntegrations: ${requirements.integrations?.join(", ")}`,
           []
@@ -134,12 +147,10 @@ router.post("/chat", async (req, res) => {
         const actualToolName = generated.toolName || toolName;
         sendEvent("status", { message: `Writing files for ${actualToolName}...` });
 
-        // Write files
         await writeToolFiles(actualToolName, generated.files);
 
         sendEvent("status", { message: "Committing to git..." });
 
-        // Commit and push
         await commitAndPush(
           actualToolName,
           `feat: add tool ${actualToolName} via Cosi builder`
@@ -152,9 +163,7 @@ router.post("/chat", async (req, res) => {
         });
       } catch (genErr) {
         console.error("[builder-api] Tool generation error:", genErr);
-        sendEvent("error", {
-          message: `Tool generation failed: ${genErr.message}`,
-        });
+        sendEvent("error", { message: `Tool generation failed: ${genErr.message}` });
       }
     }
 
@@ -168,12 +177,19 @@ router.post("/chat", async (req, res) => {
 });
 
 /**
+ * DELETE /api/builder/session/:sessionId
+ * Clear a builder session from Redis.
+ */
+router.delete("/session/:sessionId", async (req, res) => {
+  await deleteSession(req.params.sessionId, "builder");
+  res.json({ success: true });
+});
+
+/**
  * GET /api/tools
- * Returns current tool registry
  */
 router.get("/tools", async (req, res) => {
   try {
-    // Reload registry before returning
     await loadRegistry();
     const tools = getToolList();
     res.json({ tools });
@@ -184,7 +200,6 @@ router.get("/tools", async (req, res) => {
 
 /**
  * GET /api/tools/:name/logs
- * Returns placeholder logs (actual log streaming requires Docker socket)
  */
 router.get("/tools/:name/logs", async (req, res) => {
   res.json({
@@ -200,7 +215,6 @@ router.get("/settings", async (req, res) => {
   try {
     const raw = await fs.readFile(SETTINGS_PATH, "utf8").catch(() => "{}");
     const settings = JSON.parse(raw);
-    // Merge with env defaults
     res.json({
       gitRepoUrl: settings.gitRepoUrl || process.env.GIT_REPO_URL || "",
       gitBranch: settings.gitBranch || process.env.GIT_BRANCH || "main",
@@ -224,18 +238,14 @@ router.get("/settings", async (req, res) => {
 router.post("/settings", async (req, res) => {
   try {
     const settings = req.body;
-
-    // Persist to settings.json
     await fs.writeFile(SETTINGS_PATH, JSON.stringify(settings, null, 2), "utf8");
 
-    // Update environment variables for current process
     if (settings.awsRegion) process.env.AWS_REGION = settings.awsRegion;
     if (settings.bedrockModelId) process.env.BEDROCK_MODEL_ID = settings.bedrockModelId;
     if (settings.awsSecretPrefix) process.env.AWS_SECRET_PREFIX = settings.awsSecretPrefix;
     if (settings.gitRepoUrl) process.env.GIT_REPO_URL = settings.gitRepoUrl;
     if (settings.gitBranch) process.env.GIT_BRANCH = settings.gitBranch;
 
-    // Reinitialize AWS clients if region changed
     const { reinitialize: reinitBedrock } = await import("./bedrock-client.js");
     const { reinitialize: reinitSecrets } = await import("./secrets.js");
     reinitBedrock();

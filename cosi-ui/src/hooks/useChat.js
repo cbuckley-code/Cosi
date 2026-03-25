@@ -1,16 +1,23 @@
 import { useState, useCallback, useRef } from "react";
 
 /**
- * Shared chat hook with SSE streaming support.
+ * Chat hook with server-side session management via Redis.
+ *
+ * The server owns conversation history. The client only tracks:
+ * - Rendered messages (for display)
+ * - A session ID (sent with every request so the server can load the right history)
+ *
+ * On clear, the session is deleted server-side and a new one will be created
+ * on the next message.
  *
  * @param {string} endpoint - The API endpoint to POST messages to
- * @param {string} systemContext - Optional system context for the chat
  */
 export function useChat(endpoint) {
   const [messages, setMessages] = useState([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [status, setStatus] = useState(null);
   const [error, setError] = useState(null);
+  const sessionIdRef = useRef(null); // Persists for the lifetime of the hook instance
   const abortRef = useRef(null);
 
   const sendMessage = useCallback(
@@ -19,20 +26,12 @@ export function useChat(endpoint) {
 
       setError(null);
 
-      // Add user message
       const userMessage = { role: "user", content: text, id: Date.now() };
       setMessages((prev) => [...prev, userMessage]);
-
-      // Build conversation history for Bedrock (exclude current message)
-      const conversationHistory = messages.map((m) => ({
-        role: m.role,
-        content: [{ text: m.content }],
-      }));
 
       setIsStreaming(true);
       setStatus(null);
 
-      // Placeholder assistant message
       const assistantId = Date.now() + 1;
       setMessages((prev) => [
         ...prev,
@@ -46,7 +45,10 @@ export function useChat(endpoint) {
         const response = await fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: text, conversationHistory }),
+          body: JSON.stringify({
+            message: text,
+            sessionId: sessionIdRef.current, // null on first message → server creates new session
+          }),
           signal: controller.signal,
         });
 
@@ -65,7 +67,7 @@ export function useChat(endpoint) {
 
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split("\n");
-          buffer = lines.pop(); // Keep incomplete line
+          buffer = lines.pop();
 
           for (const line of lines) {
             if (!line.startsWith("data: ")) continue;
@@ -79,7 +81,10 @@ export function useChat(endpoint) {
               continue;
             }
 
-            if (event.type === "chunk") {
+            if (event.type === "session") {
+              // Server sent back the session ID — store it for subsequent messages
+              sessionIdRef.current = event.sessionId;
+            } else if (event.type === "chunk") {
               setMessages((prev) =>
                 prev.map((m) =>
                   m.id === assistantId
@@ -97,11 +102,7 @@ export function useChat(endpoint) {
               setMessages((prev) =>
                 prev.map((m) =>
                   m.id === assistantId
-                    ? {
-                        ...m,
-                        streaming: false,
-                        toolCreated,
-                      }
+                    ? { ...m, streaming: false, toolCreated }
                     : m
                 )
               );
@@ -125,26 +126,42 @@ export function useChat(endpoint) {
         setStatus(null);
       }
     },
-    [endpoint, isStreaming, messages]
+    [endpoint, isStreaming]
   );
 
   const stopStreaming = useCallback(() => {
-    if (abortRef.current) {
-      abortRef.current.abort();
-    }
+    if (abortRef.current) abortRef.current.abort();
   }, []);
 
-  const clearMessages = useCallback(() => {
+  /**
+   * Clear messages locally and delete the session from Redis.
+   */
+  const clearMessages = useCallback(async () => {
+    const currentSessionId = sessionIdRef.current;
+    sessionIdRef.current = null;
     setMessages([]);
     setError(null);
     setStatus(null);
-  }, []);
+
+    if (currentSessionId) {
+      // Derive delete endpoint from chat endpoint, e.g.
+      // /api/builder/chat → /api/builder/session/<id>
+      // /api/user/chat    → /api/user/session/<id>
+      const deleteEndpoint = endpoint.replace(/\/chat$/, `/session/${currentSessionId}`);
+      try {
+        await fetch(deleteEndpoint, { method: "DELETE" });
+      } catch {
+        // Non-fatal — session will expire via Redis TTL
+      }
+    }
+  }, [endpoint]);
 
   return {
     messages,
     isStreaming,
     status,
     error,
+    sessionId: sessionIdRef.current,
     sendMessage,
     stopStreaming,
     clearMessages,

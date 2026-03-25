@@ -111,6 +111,7 @@ Cosi's `/mcp` endpoint is a standards-compliant MCP server. Any MCP client can c
 
 ## Prerequisites
 
+**Docker Compose (local)**
 - Docker and Docker Compose v2
 - `make`
 - `openssl` (for self-signed TLS cert generation)
@@ -118,9 +119,132 @@ Cosi's `/mcp` endpoint is a standards-compliant MCP server. Any MCP client can c
 - An AWS Bedrock model enabled in your region (default: Claude Sonnet 4)
 - A git repository Cosi can commit generated tools to (can be this repo itself)
 
+**Kubernetes (Helm)**
+- Kubernetes 1.24+
+- Helm 3.10+
+- A `ReadWriteMany`-capable StorageClass (for the shared tools PVC)
+- AWS credentials via IRSA, instance profile, or a Kubernetes secret
+
 ---
 
-## Setup
+## Deploy on Kubernetes with Helm
+
+The Cosi Helm chart is hosted on GitHub Pages and published automatically whenever `helm/` changes on `main`.
+
+### 1. Add the Helm repository
+
+```bash
+helm repo add cosi https://cbuckley-code.github.io/Cosi
+helm repo update
+```
+
+### 2. Install
+
+```bash
+helm install cosi cosi/cosi \
+  --set orchestrator.git.repoUrl=https://github.com/your-org/cosi-tools.git \
+  --set aws.existingSecret=cosi-aws
+```
+
+> **AWS credentials** — recommended approach is IRSA. Annotate the service account:
+> ```bash
+> helm install cosi cosi/cosi \
+>   --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=arn:aws:iam::123456789:role/cosi-role \
+>   --set orchestrator.git.repoUrl=https://github.com/your-org/cosi-tools.git
+> ```
+>
+> Or create a credentials secret and reference it:
+> ```bash
+> kubectl create secret generic cosi-aws \
+>   --from-literal=AWS_ACCESS_KEY_ID=<key-id> \
+>   --from-literal=AWS_SECRET_ACCESS_KEY=<secret>
+> helm install cosi cosi/cosi --set aws.existingSecret=cosi-aws \
+>   --set orchestrator.git.repoUrl=https://github.com/your-org/cosi-tools.git
+> ```
+
+### 3. Access the UI
+
+By default the nginx Service is `ClusterIP`. Port-forward to get started:
+
+```bash
+kubectl port-forward svc/cosi-nginx 8443:443
+```
+
+Then open **https://localhost:8443** (accept the self-signed cert warning).
+
+To expose via a LoadBalancer:
+
+```bash
+helm upgrade cosi cosi/cosi --set nginx.service.type=LoadBalancer
+```
+
+Or enable Ingress (e.g. with cert-manager):
+
+```yaml
+# my-values.yaml
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  host: cosi.example.com
+  tls:
+    enabled: true
+    secretName: cosi-tls
+```
+
+```bash
+helm upgrade cosi cosi/cosi -f my-values.yaml
+```
+
+### 4. Connect an MCP client
+
+```json
+{
+  "mcpServers": {
+    "cosi": {
+      "url": "https://cosi.example.com/mcp",
+      "skipTlsVerification": true
+    }
+  }
+}
+```
+
+### Key values
+
+| Value | Default | Description |
+|---|---|---|
+| `orchestrator.git.repoUrl` | `""` | **Required.** Git repo Cosi commits cositas to |
+| `orchestrator.aws.region` | `us-west-2` | AWS region for Bedrock and Secrets Manager |
+| `orchestrator.aws.bedrockModelId` | Claude Sonnet 4 | Bedrock model ID |
+| `aws.existingSecret` | `""` | K8s secret with `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` |
+| `git.existingSecret` | `""` | K8s secret with `GIT_TOKEN` for git push auth |
+| `nginx.tls.existingSecret` | `""` | Existing TLS secret; omit to auto-generate self-signed cert |
+| `redis.persistence.size` | `2Gi` | Redis PVC size |
+| `builder.toolsPvc.size` | `5Gi` | Shared tools PVC size |
+| `ingress.enabled` | `false` | Enable Ingress resource |
+| `serviceAccount.annotations` | `{}` | Use for IRSA role annotation |
+
+Full reference: [`helm/cosi/values.yaml`](helm/cosi/values.yaml)
+
+### Upgrading
+
+```bash
+helm repo update
+helm upgrade cosi cosi/cosi
+```
+
+### Uninstalling
+
+```bash
+helm uninstall cosi
+# PVCs are not deleted automatically — remove manually if desired:
+kubectl delete pvc cosi-tools cosi-redis
+```
+
+---
+
+## Setup (Docker Compose)
 
 ### 1. Clone the repo
 
@@ -429,3 +553,14 @@ Conversation history (both Builder and Chat) is stored in Redis with a 24-hour s
 - Confirm Cosi is running: `curl -k https://localhost:8443/health`
 - Enable TLS verification bypass in your client for the self-signed cert
 - Check your client supports streamable HTTP MCP transport
+
+**Helm: pods stuck in Pending**
+- Check PVC status: `kubectl get pvc` — the tools PVC requires a `ReadWriteMany` StorageClass (e.g. EFS on EKS, NFS, or `local-path` for single-node clusters)
+- Describe the pod for scheduling events: `kubectl describe pod <pod-name>`
+
+**Helm: builder can't reach Docker**
+- The builder mounts the node's Docker socket (`/var/run/docker.sock`). Verify Docker is running on the node and the path matches `builder.dockerSocket.hostPath` in your values
+
+**Helm: chart not found after `helm repo add`**
+- Confirm GitHub Pages is enabled on the `gh-pages` branch for the Cosi repository (Settings → Pages)
+- Run `helm repo update cosi` and try again

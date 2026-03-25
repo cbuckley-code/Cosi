@@ -18,6 +18,97 @@ Cosi's `/mcp` endpoint is a standards-compliant MCP server. Any MCP client can c
 
 ---
 
+## Architecture
+
+```
+  ┌─────────────────────────────────────────────────────────────────┐
+  │               External MCP Clients                              │
+  │        Claude Code · Cursor · any MCP-compatible client         │
+  └───────────────────────────┬─────────────────────────────────────┘
+                              │ HTTPS :8443
+                              ▼
+  ┌─────────────────────────────────────────────────────────────────┐
+  │                        cosi-nginx                               │
+  │                  TLS termination + reverse proxy                │
+  │                                                                 │
+  │   /          → React UI (Cloudscape dark mode, static assets)   │
+  │   /api/*     → cosi-orchestrator :3001                          │
+  │   /mcp       → cosi-orchestrator :3001                          │
+  └───────────────────────────┬─────────────────────────────────────┘
+                              │ HTTP (internal)
+                              ▼
+  ┌─────────────────────────────────────────────────────────────────┐
+  │                     cosi-orchestrator                           │
+  │                                                                 │
+  │  ┌─────────────────┐   ┌──────────────┐   ┌─────────────────┐  │
+  │  │   MCP Server    │   │ Builder API  │   │   User Chat     │  │
+  │  │ (streamable HTTP│   │ POST /api/   │   │ POST /api/user/ │  │
+  │  │  tools/list     │   │ builder/chat │   │ chat (SSE)      │  │
+  │  │  tools/call)    │   │ (SSE stream) │   └────────┬────────┘  │
+  │  └────────┬────────┘   └──────┬───────┘            │           │
+  │           │                   │                     │           │
+  │  ┌────────▼───────────────────▼─────────────────────▼────────┐ │
+  │  │                      Core Services                         │ │
+  │  │  registry.js      tool-generator.js    bedrock-client.js   │ │
+  │  │  git-client.js    secrets.js           session-store.js    │ │
+  │  │                   session-compaction.js                    │ │
+  │  └──────────────┬──────────────────────────────┬─────────────┘ │
+  └─────────────────┼──────────────────────────────┼───────────────┘
+                    │ MCP client calls              │ ioredis
+                    │ (route tools/call)            ▼
+  ┌─────────────────┼──────────────┐  ┌────────────────────────────┐
+  │  Cosita containers             │  │        cosi-redis           │
+  │                │               │  │                             │
+  │  ┌─────────────▼─────────────┐ │  │  Session history (TTL 24h) │
+  │  │  tool-github-issues :3000 │ │  │  Auto-compaction via        │
+  │  │  GET  /health             │ │  │  Bedrock summarization      │
+  │  │  POST /mcp                │ │  └────────────────────────────┘
+  │  └───────────────────────────┘ │
+  │  ┌───────────────────────────┐ │
+  │  │  tool-jira        :3000   │ │
+  │  └───────────────────────────┘ │
+  │  ┌───────────────────────────┐ │
+  │  │  tool-<your-cosita> :3000 │ │
+  │  └───────────────────────────┘ │
+  └────────────────────────────────┘
+
+  ┌─────────────────────────────────────────────────────────────────┐
+  │                       cosi-builder                              │
+  │                  (privileged — Docker socket)                   │
+  │                                                                 │
+  │   1. Poll git every 5s — track commit hash                      │
+  │   2. Diff changed tools/ directories                            │
+  │   3. docker build → cosi-tool-<name>:latest                    │
+  │   4. Regenerate docker-compose.tools.yml                        │
+  │   5. docker compose up -d --remove-orphans                      │
+  │   6. Restart cosi-orchestrator                                  │
+  └──────────────────────────┬──────────────────────────────────────┘
+                             │
+                             ▼
+  ┌─────────────────────────────────────────────────────────────────┐
+  │                      Git Repository                             │
+  │              (source of truth for all cositas)                  │
+  │                                                                 │
+  │   tools/                                                        │
+  │   ├── github-issues/                                            │
+  │   │   ├── index.js   tool.json   package.json   Dockerfile      │
+  │   ├── jira/                                                      │
+  │   └── <your-cosita>/                                            │
+  └─────────────────────────────────────────────────────────────────┘
+
+  ┌─────────────────────────────────────────────────────────────────┐
+  │                       AWS Bedrock                               │
+  │        Claude Sonnet (or any configured Bedrock model)          │
+  │                                                                 │
+  │   · Builder chat — design conversations                         │
+  │   · Tool generation — writes index.js, tool.json, Dockerfile    │
+  │   · User chat — natural language → tool calls                   │
+  │   · Session compaction — summarizes long conversation history   │
+  └─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## Prerequisites
 
 - Docker and Docker Compose v2

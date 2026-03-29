@@ -5,7 +5,9 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "node --watch src/index.js"
+    "dev": "node --watch src/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.700.0",
@@ -16,5 +18,9 @@
     "ioredis": "^5.4.0",
     "simple-git": "^3.27.0",
     "uuid": "^11.0.0"
+  },
+  "devDependencies": {
+    "supertest": "^7.0.0",
+    "vitest": "^2.0.0"
   }
 }

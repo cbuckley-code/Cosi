@@ -1,5 +1,11 @@
 # Cosi
 
+> **Support this project** — If Cosi saves you time, consider buying me a coffee via Venmo: **[@Christopher-Buckley-2](https://venmo.com/Christopher-Buckley-2)**
+>
+> ![Venmo QR Code](assets/venmo-qr.png)
+
+---
+
 Cosi is a self-extending MCP (Model Context Protocol) orchestrator. Describe a tool you need in plain language and Cosi writes the code, commits it to git, builds and deploys it as a container, and makes it immediately available — from Cosi's own chat UI or any MCP client like Claude Code or Cursor.
 
 Tools built with Cosi are called **cositas**.

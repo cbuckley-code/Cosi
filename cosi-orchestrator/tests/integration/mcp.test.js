@@ -22,9 +22,14 @@ describe("POST /mcp", () => {
           capabilities: {},
           clientInfo: { name: "test-client", version: "1.0.0" },
         },
+      })
+      .parse((res, callback) => {
+        let data = "";
+        res.setEncoding("utf8");
+        res.on("data", (chunk) => { data += chunk; });
+        res.on("end", () => callback(null, data));
       });
 
-    // MCP returns 200 with chunked JSON
     expect(res.status).toBe(200);
   });
 });

@@ -44,6 +44,13 @@ export function buildMcpServer() {
     );
   }
 
+  // McpServer only registers the tools/list + tools/call handlers lazily the
+  // first time server.tool() is called. If no tools are registered the loop
+  // above never runs, leaving the server without a tools/list handler and
+  // causing clients to receive "Method not found". Force handler registration
+  // so tools/list always works (returning an empty array when no tools exist).
+  server.setToolRequestHandlers();
+
   return server;
 }
 

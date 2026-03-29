@@ -79,6 +79,7 @@ function mcpPost(body) {
 // In stateless mode the transport returns either a single JSON object or
 // newline-delimited JSON objects; we look for the one with id + result/error.
 function parseMcpBody(raw) {
+  if (!raw) return null;
   for (const line of raw.trim().split("\n")) {
     try {
       const obj = JSON.parse(line);
@@ -120,7 +121,7 @@ describe("POST /mcp — initialize", () => {
 
   it("response body identifies the server as cosi-orchestrator", async () => {
     const res = await mcpPost(INIT_PAYLOAD);
-    const body = parseMcpBody(res.text);
+    const body = parseMcpBody(res.body);
     expect(body).not.toBeNull();
     expect(body.result.serverInfo.name).toBe("cosi-orchestrator");
     expect(body.result.serverInfo.version).toBe("1.0.0");

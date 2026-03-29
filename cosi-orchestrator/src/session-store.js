@@ -10,7 +10,7 @@ function getRedis() {
   if (!redis) {
     redis = new Redis(REDIS_URL, {
       lazyConnect: true,
-      enableOfflineQueue: false,
+      enableOfflineQueue: true,
       retryStrategy: (times) => (times > 3 ? null : Math.min(times * 200, 2000)),
     });
     redis.on("error", (err) => {

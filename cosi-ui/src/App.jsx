@@ -3,12 +3,10 @@ import AppLayout from "@cloudscape-design/components/app-layout";
 import SideNavigation from "@cloudscape-design/components/side-navigation";
 import Box from "@cloudscape-design/components/box";
 import StatusIndicator from "@cloudscape-design/components/status-indicator";
-import BuilderChat from "./components/BuilderChat.jsx";
-import UserChat from "./components/UserChat.jsx";
+import Chat from "./components/Chat.jsx";
 import Settings from "./components/Settings.jsx";
 
 const NAV_ITEMS = [
-  { type: "link", text: "Builder", href: "#builder" },
   { type: "link", text: "Chat", href: "#chat" },
   { type: "divider" },
   { type: "link", text: "Settings", href: "#settings" },
@@ -17,9 +15,8 @@ const NAV_ITEMS = [
 function useActiveView() {
   const getView = () => {
     const hash = window.location.hash;
-    if (hash === "#chat") return "chat";
     if (hash === "#settings") return "settings";
-    return "builder";
+    return "chat";
   };
 
   const [view, setView] = useState(getView);
@@ -30,7 +27,7 @@ function useActiveView() {
     return () => window.removeEventListener("hashchange", handler);
   }, []);
 
-  return [view, setView];
+  return view;
 }
 
 function useHealthStatus() {
@@ -54,14 +51,10 @@ function useHealthStatus() {
 }
 
 export default function App() {
-  const [activeView] = useActiveView();
+  const activeView = useActiveView();
   const healthy = useHealthStatus();
 
-  const content = {
-    builder: <BuilderChat />,
-    chat: <UserChat />,
-    settings: <Settings />,
-  }[activeView];
+  const content = activeView === "settings" ? <Settings /> : <Chat />;
 
   return (
     <AppLayout
@@ -69,7 +62,7 @@ export default function App() {
       navigation={
         <SideNavigation
           header={{
-            href: "#builder",
+            href: "#chat",
             text: (
               <Box>
                 <strong>Cosi</strong>

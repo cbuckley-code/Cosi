@@ -13,7 +13,7 @@ const toolRegistry = new Map();
 const serviceTools = new Map();
 
 /**
- * Scan tools/*/tool.json and populate the registry.
+ * Scan tools/{name}/tool.json and populate the registry.
  */
 export async function loadRegistry() {
   toolRegistry.clear();

@@ -65,7 +65,7 @@ const router = express.Router();
  * Body: { message: string, sessionId?: string }
  * Streams SSE response. Session history is managed server-side in Redis.
  */
-router.post("/chat", async (req, res) => {
+router.post("/builder/chat", async (req, res) => {
   const { message, sessionId: incomingSessionId, attachments = [] } = req.body;
 
   if (!message) {
@@ -182,7 +182,7 @@ router.post("/chat", async (req, res) => {
  * DELETE /api/builder/session/:sessionId
  * Clear a builder session from Redis.
  */
-router.delete("/session/:sessionId", async (req, res) => {
+router.delete("/builder/session/:sessionId", async (req, res) => {
   await deleteSession(req.params.sessionId, "builder");
   res.json({ success: true });
 });

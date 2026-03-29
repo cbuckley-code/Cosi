@@ -12,17 +12,13 @@ import { useFileDropzone } from "../hooks/useFileDropzone.js";
 import { useSpeechToText } from "../hooks/useSpeechToText.js";
 import { MicButton } from "./MicButton.jsx";
 
-export default function UserChat() {
+export default function Chat() {
   const [inputValue, setInputValue] = useState("");
-  const [showTools, setShowTools] = useState(true);
+  const [showTools, setShowTools] = useState(false);
   const messagesEndRef = useRef(null);
-  const inputValueRef = useRef(inputValue);
-  const { messages, isStreaming, status, error, sendMessage, clearMessages } =
-    useChat("/api/user/chat");
 
-  useEffect(() => {
-    inputValueRef.current = inputValue;
-  }, [inputValue]);
+  const { messages, isStreaming, status, error, sendMessage, clearMessages } =
+    useChat("/api/chat");
 
   const {
     isDragging,
@@ -36,20 +32,28 @@ export default function UserChat() {
     onFileInputChange,
   } = useFileDropzone();
 
-  const handleSpeechTranscript = useCallback((oldInterim, finalText, newInterim) => {
-    setInputValue((prev) => {
-      const base = oldInterim ? prev.slice(0, prev.length - oldInterim.length) : prev;
-      if (finalText !== null && finalText !== undefined) {
-        // Append confirmed text with a trailing space
-        return base + finalText + " ";
-      }
-      // Replace interim placeholder
-      return base + (newInterim || "");
-    });
-  }, []);
+  const handleSpeechTranscript = useCallback(
+    (oldInterim, finalText, newInterim) => {
+      setInputValue((prev) => {
+        const base = oldInterim
+          ? prev.slice(0, prev.length - oldInterim.length)
+          : prev;
+        if (finalText !== null && finalText !== undefined) {
+          return base + finalText + " ";
+        }
+        return base + (newInterim || "");
+      });
+    },
+    []
+  );
 
-  const { isListening, isSupported, error: micError, start: startListening, stop: stopListening } =
-    useSpeechToText(handleSpeechTranscript);
+  const {
+    isListening,
+    isSupported,
+    error: micError,
+    start: startListening,
+    stop: stopListening,
+  } = useSpeechToText(handleSpeechTranscript);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -81,7 +85,6 @@ export default function UserChat() {
         style={{ flex: 1, position: "relative" }}
         {...dragProps}
       >
-        {/* Hidden file input */}
         <input
           ref={fileInputRef}
           type="file"
@@ -91,15 +94,14 @@ export default function UserChat() {
           onChange={onFileInputChange}
         />
 
-        {/* Drag overlay */}
         <DragOverlay visible={isDragging} />
 
         {/* Header */}
         <Box padding={{ horizontal: "l", vertical: "s" }}>
           <SpaceBetween direction="horizontal" size="s" alignItems="center">
-            <Box variant="h3">Chat</Box>
+            <Box variant="h3">Cosi</Box>
             <Box variant="small" color="text-body-secondary">
-              Chat with your tools via Cosi
+              Chat with your tools or ask me to build new ones
             </Box>
             <SpaceBetween direction="horizontal" size="xs">
               {messages.length > 0 && (
@@ -107,8 +109,8 @@ export default function UserChat() {
                   Clear
                 </Button>
               )}
-              <Button variant="link" onClick={() => setShowTools(!showTools)}>
-                {showTools ? "Hide Tools" : "Show Tools"}
+              <Button variant="link" onClick={() => setShowTools((s) => !s)}>
+                {showTools ? "Hide Tools" : "Tools"}
               </Button>
             </SpaceBetween>
           </SpaceBetween>
@@ -119,13 +121,16 @@ export default function UserChat() {
           {messages.length === 0 && (
             <Box textAlign="center" color="text-body-secondary" padding="l">
               <SpaceBetween size="s">
-                <Box variant="h4">Start chatting with your tools</Box>
+                <Box variant="h4">What can I help you with?</Box>
                 <Box>
-                  Ask questions or give commands and Cosi will use your
-                  registered tools to help.
+                  Chat with your registered tools, or ask me to build a new one.
+                </Box>
+                <Box fontStyle="italic" color="text-body-secondary">
+                  "Search our Jira board for open P1 bugs" ·{" "}
+                  "Build a tool that integrates with GitHub Issues"
                 </Box>
                 <Box variant="small">
-                  Drag and drop images or files to include them in your message.
+                  Drop images or files into the chat to include them.
                 </Box>
               </SpaceBetween>
             </Box>
@@ -163,7 +168,7 @@ export default function UserChat() {
           </Box>
         )}
 
-        {/* Attachment preview strip */}
+        {/* Attachment strip */}
         {attachments.length > 0 && (
           <div
             style={{
@@ -174,12 +179,15 @@ export default function UserChat() {
             }}
           >
             {attachments.map((a) => (
-              <AttachmentChip key={a.id} attachment={a} onRemove={removeAttachment} />
+              <AttachmentChip
+                key={a.id}
+                attachment={a}
+                onRemove={removeAttachment}
+              />
             ))}
           </div>
         )}
 
-        {/* Mic error */}
         {micError && (
           <Box padding={{ horizontal: "l" }}>
             <StatusIndicator type="error">{micError}</StatusIndicator>
@@ -209,14 +217,16 @@ export default function UserChat() {
                 value={inputValue}
                 onChange={({ detail }) => setInputValue(detail.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask a question or drop files here..."
+                placeholder="Chat with your tools or ask me to build a new one…"
                 disabled={isStreaming}
               />
             </div>
             <Button
               variant="primary"
               onClick={handleSend}
-              disabled={(!inputValue.trim() && attachments.length === 0) || isStreaming}
+              disabled={
+                (!inputValue.trim() && attachments.length === 0) || isStreaming
+              }
               loading={isStreaming}
             >
               Send
@@ -225,14 +235,14 @@ export default function UserChat() {
         </div>
       </div>
 
-      {/* Tools sidebar */}
+      {/* Collapsible tool registry panel */}
       {showTools && (
         <div
           style={{
-            width: 280,
-            borderLeft: "1px solid #232f3e",
-            overflow: "auto",
-            padding: 16,
+            width: 300,
+            borderLeft:
+              "1px solid var(--color-border-divider-default, #414d5c)",
+            overflowY: "auto",
             flexShrink: 0,
           }}
         >

@@ -6,3 +6,4 @@ cosi-ui/certs/
 *.crt
 *.key
 .DS_Store
+*.rdb

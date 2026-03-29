@@ -64,6 +64,17 @@ function rawParser(res, callback) {
   res.on("end", () => callback(null, data));
 }
 
+// POST /mcp with the headers the SDK transport requires.
+// The transport validates Accept and returns 406 if it is missing.
+function mcpPost(body) {
+  return request(app)
+    .post("/mcp")
+    .set("Content-Type", "application/json")
+    .set("Accept", "application/json, text/event-stream")
+    .send(body)
+    .parse(rawParser);
+}
+
 // Parse the JSON-RPC response out of a raw MCP response body.
 // In stateless mode the transport returns either a single JSON object or
 // newline-delimited JSON objects; we look for the one with id + result/error.
@@ -90,42 +101,25 @@ describe("GET /mcp", () => {
   });
 });
 
+const INIT_PAYLOAD = {
+  jsonrpc: "2.0",
+  id: 1,
+  method: "initialize",
+  params: {
+    protocolVersion: "2024-11-05",
+    capabilities: {},
+    clientInfo: { name: "test-client", version: "1.0.0" },
+  },
+};
+
 describe("POST /mcp — initialize", () => {
   it("returns 200", async () => {
-    const res = await request(app)
-      .post("/mcp")
-      .set("Content-Type", "application/json")
-      .send({
-        jsonrpc: "2.0",
-        id: 1,
-        method: "initialize",
-        params: {
-          protocolVersion: "2024-11-05",
-          capabilities: {},
-          clientInfo: { name: "test-client", version: "1.0.0" },
-        },
-      })
-      .parse(rawParser);
-
+    const res = await mcpPost(INIT_PAYLOAD);
     expect(res.status).toBe(200);
   });
 
   it("response body identifies the server as cosi-orchestrator", async () => {
-    const res = await request(app)
-      .post("/mcp")
-      .set("Content-Type", "application/json")
-      .send({
-        jsonrpc: "2.0",
-        id: 1,
-        method: "initialize",
-        params: {
-          protocolVersion: "2024-11-05",
-          capabilities: {},
-          clientInfo: { name: "test-client", version: "1.0.0" },
-        },
-      })
-      .parse(rawParser);
-
+    const res = await mcpPost(INIT_PAYLOAD);
     const body = parseMcpBody(res.text);
     expect(body).not.toBeNull();
     expect(body.result.serverInfo.name).toBe("cosi-orchestrator");
@@ -133,22 +127,7 @@ describe("POST /mcp — initialize", () => {
   });
 
   it("consecutive initialize requests both succeed (fresh server per request)", async () => {
-    const payload = {
-      jsonrpc: "2.0",
-      id: 1,
-      method: "initialize",
-      params: {
-        protocolVersion: "2024-11-05",
-        capabilities: {},
-        clientInfo: { name: "test-client", version: "1.0.0" },
-      },
-    };
-
-    const [r1, r2] = await Promise.all([
-      request(app).post("/mcp").set("Content-Type", "application/json").send(payload).parse(rawParser),
-      request(app).post("/mcp").set("Content-Type", "application/json").send(payload).parse(rawParser),
-    ]);
-
+    const [r1, r2] = await Promise.all([mcpPost(INIT_PAYLOAD), mcpPost(INIT_PAYLOAD)]);
     expect(r1.status).toBe(200);
     expect(r2.status).toBe(200);
   });

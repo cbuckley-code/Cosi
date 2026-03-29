@@ -34,6 +34,10 @@ async function waitForRedis(retries = 20, delayMs = 300) {
 }
 
 export async function setup() {
+  // Each createApp() creates a Redis connection; raise the limit to avoid
+  // MaxListenersExceededWarning when many test files share the same process.
+  process.setMaxListeners(0);
+
   // In CI, Redis is provided as a service container — skip Docker management
   if (process.env.CI) {
     await waitForRedis();

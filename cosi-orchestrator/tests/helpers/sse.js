@@ -3,8 +3,16 @@
  *
  * Each SSE block looks like:
  *   data: {"type":"chunk","text":"Hello"}\n\n
+ *
+ * Usage with supertest:
+ *   const res = await request(app).post('/api/...').send({...})
+ *   const events = parseSSEEvents(res.text)
+ *
+ * superagent (used by supertest) automatically buffers text/* responses
+ * into res.text — no custom parser needed for text/event-stream.
  */
 export function parseSSEEvents(raw) {
+  if (!raw) return [];
   return raw
     .split("\n\n")
     .map((block) => {
@@ -19,18 +27,4 @@ export function parseSSEEvents(raw) {
       }
     })
     .filter(Boolean);
-}
-
-/**
- * supertest custom response parser for SSE streams.
- * Use with: request(app).post(...).parse(sseParser)
- * Result is in res.body as a string.
- */
-export function sseParser(res, callback) {
-  let data = "";
-  res.setEncoding("utf8");
-  res.on("data", (chunk) => {
-    data += chunk;
-  });
-  res.on("end", () => callback(null, data));
 }

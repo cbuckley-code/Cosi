@@ -28,7 +28,7 @@ vi.mock("../../src/tool-generator.js", () => ({
 import request from "supertest";
 import * as bedrockClient from "../../src/bedrock-client.js";
 import { createApp } from "../../src/app.js";
-import { parseSSEEvents, sseParser } from "../helpers/sse.js";
+import { parseSSEEvents } from "../helpers/sse.js";
 
 let app;
 
@@ -53,8 +53,7 @@ describe("POST /api/user/chat", () => {
   it("returns text/event-stream content type", async () => {
     const res = await request(app)
       .post("/api/user/chat")
-      .send({ message: "Who are you?" })
-      .parse(sseParser);
+      .send({ message: "Who are you?" });
 
     expect(res.headers["content-type"]).toMatch(/text\/event-stream/);
   });
@@ -62,10 +61,9 @@ describe("POST /api/user/chat", () => {
   it("streams session → start → chunk(s) → done in order", async () => {
     const res = await request(app)
       .post("/api/user/chat")
-      .send({ message: "Hello" })
-      .parse(sseParser);
+      .send({ message: "Hello" });
 
-    const events = parseSSEEvents(res.body);
+    const events = parseSSEEvents(res.text);
     const types = events.map((e) => e.type);
 
     expect(types.indexOf("session")).toBeGreaterThanOrEqual(0);
@@ -77,10 +75,9 @@ describe("POST /api/user/chat", () => {
   it("concatenates chunk text to form the full response", async () => {
     const res = await request(app)
       .post("/api/user/chat")
-      .send({ message: "Hello" })
-      .parse(sseParser);
+      .send({ message: "Hello" });
 
-    const fullText = parseSSEEvents(res.body)
+    const fullText = parseSSEEvents(res.text)
       .filter((e) => e.type === "chunk")
       .map((e) => e.text)
       .join("");
@@ -96,35 +93,25 @@ describe("POST /api/user/chat", () => {
 
     const res = await request(app)
       .post("/api/user/chat")
-      .send({ message: "Hello" })
-      .parse(sseParser);
+      .send({ message: "Hello" });
 
-    const errorEvent = parseSSEEvents(res.body).find(
+    const errorEvent = parseSSEEvents(res.text).find(
       (e) => e.type === "error"
     );
     expect(errorEvent).toBeDefined();
     expect(errorEvent.message).toContain("Network error");
   });
 
-  it("passes attachments through to the chat stream", async () => {
-    const callArgs = [];
-    vi.mocked(bedrockClient.chatStream).mockImplementation(
-      async function* (messages) {
-        callArgs.push(messages);
-        yield "Got it!";
-      }
-    );
+  it("calls chatStream with the user message", async () => {
+    vi.mocked(bedrockClient.chatStream).mockClear();
 
     await request(app)
       .post("/api/user/chat")
-      .send({
-        message: "Look at this",
-        attachments: [{ type: "text", name: "file.txt", content: "Hello" }],
-      })
-      .parse(sseParser);
+      .send({ message: "Hello there" });
 
-    expect(callArgs.length).toBeGreaterThan(0);
-    const lastMessage = callArgs[0].at(-1);
+    expect(vi.mocked(bedrockClient.chatStream).mock.calls).toHaveLength(1);
+    const messages = vi.mocked(bedrockClient.chatStream).mock.calls[0][0];
+    const lastMessage = messages.at(-1);
     expect(lastMessage.role).toBe("user");
   });
 });

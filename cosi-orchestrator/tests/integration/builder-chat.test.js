@@ -28,7 +28,7 @@ vi.mock("../../src/tool-generator.js", () => ({
 import request from "supertest";
 import * as bedrockClient from "../../src/bedrock-client.js";
 import { createApp } from "../../src/app.js";
-import { parseSSEEvents, sseParser } from "../helpers/sse.js";
+import { parseSSEEvents } from "../helpers/sse.js";
 
 let app;
 
@@ -53,8 +53,7 @@ describe("POST /api/builder/chat", () => {
   it("returns text/event-stream content type", async () => {
     const res = await request(app)
       .post("/api/builder/chat")
-      .send({ message: "Hello" })
-      .parse(sseParser);
+      .send({ message: "Hello" });
 
     expect(res.headers["content-type"]).toMatch(/text\/event-stream/);
   });
@@ -62,10 +61,9 @@ describe("POST /api/builder/chat", () => {
   it("streams session → start → chunk(s) → done events in order", async () => {
     const res = await request(app)
       .post("/api/builder/chat")
-      .send({ message: "Hello" })
-      .parse(sseParser);
+      .send({ message: "Hello" });
 
-    const events = parseSSEEvents(res.body);
+    const events = parseSSEEvents(res.text);
     const types = events.map((e) => e.type);
 
     const sessionIdx = types.indexOf("session");
@@ -81,11 +79,9 @@ describe("POST /api/builder/chat", () => {
   it("concatenates chunk text to form the full response", async () => {
     const res = await request(app)
       .post("/api/builder/chat")
-      .send({ message: "Hello" })
-      .parse(sseParser);
+      .send({ message: "Hello" });
 
-    const events = parseSSEEvents(res.body);
-    const fullText = events
+    const fullText = parseSSEEvents(res.text)
       .filter((e) => e.type === "chunk")
       .map((e) => e.text)
       .join("");
@@ -96,25 +92,21 @@ describe("POST /api/builder/chat", () => {
   it("includes a sessionId in the session event", async () => {
     const res = await request(app)
       .post("/api/builder/chat")
-      .send({ message: "Hello" })
-      .parse(sseParser);
+      .send({ message: "Hello" });
 
-    const sessionEvent = parseSSEEvents(res.body).find(
+    const sessionEvent = parseSSEEvents(res.text).find(
       (e) => e.type === "session"
     );
-    expect(sessionEvent.sessionId).toMatch(
-      /^[0-9a-f-]{36}$/i // UUID format
-    );
+    expect(sessionEvent.sessionId).toMatch(/^[0-9a-f-]{36}$/i);
   });
 
   it("accepts an optional sessionId and echoes it back", async () => {
     const sessionId = "11111111-2222-3333-4444-555555555555";
     const res = await request(app)
       .post("/api/builder/chat")
-      .send({ message: "Hello", sessionId })
-      .parse(sseParser);
+      .send({ message: "Hello", sessionId });
 
-    const sessionEvent = parseSSEEvents(res.body).find(
+    const sessionEvent = parseSSEEvents(res.text).find(
       (e) => e.type === "session"
     );
     expect(sessionEvent.sessionId).toBe(sessionId);
@@ -123,16 +115,16 @@ describe("POST /api/builder/chat", () => {
   it("streams an error event when Bedrock throws", async () => {
     vi.mocked(bedrockClient.chatStream).mockImplementation(async function* () {
       throw new Error("Bedrock unavailable");
-      yield ""; // unreachable, satisfies generator type
+      yield "";
     });
 
     const res = await request(app)
       .post("/api/builder/chat")
-      .send({ message: "Hello" })
-      .parse(sseParser);
+      .send({ message: "Hello" });
 
-    const events = parseSSEEvents(res.body);
-    const errorEvent = events.find((e) => e.type === "error");
+    const errorEvent = parseSSEEvents(res.text).find(
+      (e) => e.type === "error"
+    );
     expect(errorEvent).toBeDefined();
     expect(errorEvent.message).toContain("Bedrock unavailable");
   });

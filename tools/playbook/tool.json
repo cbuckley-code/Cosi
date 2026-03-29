@@ -1,0 +1,57 @@
+{
+  "name": "playbook",
+  "description": "Semantic memory store for tool usage patterns, optimizations, and lessons learned. Backed by Redis with Amazon Titan Text embeddings for similarity search.",
+  "version": "1.0.0",
+  "tools": [
+    {
+      "name": "add_playbook_entry",
+      "description": "Add a playbook entry documenting a tool usage pattern, optimization, or lesson learned",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "toolName": { "type": "string" },
+          "title": { "type": "string" },
+          "content": { "type": "string" },
+          "tags": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["toolName", "title", "content"]
+      }
+    },
+    {
+      "name": "search_playbook",
+      "description": "Search the playbook for relevant entries using semantic similarity against Amazon Titan Text embeddings",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": { "type": "string" },
+          "toolName": { "type": "string" },
+          "topK": { "type": "number" }
+        },
+        "required": ["query"]
+      }
+    },
+    {
+      "name": "list_playbook_entries",
+      "description": "List all playbook entries, optionally filtered by tool name",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "toolName": { "type": "string" }
+        }
+      }
+    },
+    {
+      "name": "delete_playbook_entry",
+      "description": "Delete a playbook entry by its ID",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" }
+        },
+        "required": ["id"]
+      }
+    }
+  ],
+  "secrets": [],
+  "port": 3000
+}

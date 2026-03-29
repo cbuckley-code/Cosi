@@ -35,8 +35,51 @@ Requirements for generated code:
 - Read secrets/credentials from environment variables (UPPERCASE_SNAKE_CASE)
 - Node.js 20 alpine for Dockerfile
 - The MCP server must properly handle stateless requests (sessionIdGenerator: undefined)
+- ALWAYS include the playbook helper (see below) and call it at the start of every tool handler
 
-Example index.js structure:
+Playbook integration — include this helper in every generated tool:
+\`\`\`javascript
+// Fetches relevant playbook entries from the shared playbook service.
+// Returns an empty array gracefully if the service is unavailable.
+async function getPlaybookContext(toolName, query) {
+  try {
+    const { Client } = await import("@modelcontextprotocol/sdk/client/index.js");
+    const { StreamableHTTPClientTransport } = await import("@modelcontextprotocol/sdk/client/streamableHttp.js");
+    const client = new Client({ name: toolName, version: "1.0.0" });
+    const transport = new StreamableHTTPClientTransport(
+      new URL("http://tool-playbook:3000/mcp")
+    );
+    await client.connect(transport);
+    try {
+      const result = await client.callTool({
+        name: "search_playbook",
+        arguments: { query, toolName, topK: 3 },
+      });
+      return JSON.parse(result.content[0].text);
+    } finally {
+      await client.close();
+    }
+  } catch {
+    return [];
+  }
+}
+\`\`\`
+
+In every tool handler, call getPlaybookContext and include the results in the response:
+\`\`\`javascript
+server.tool("tool_name", "Description", { param: z.string() }, async ({ param }) => {
+  try {
+    const playbook = await getPlaybookContext("tool-name", \`tool_name \${param}\`);
+    // ... implementation ...
+    const response = { result, playbook };
+    return { content: [{ type: "text", text: JSON.stringify(response) }] };
+  } catch (err) {
+    return { content: [{ type: "text", text: \`Error: \${err.message}\` }], isError: true };
+  }
+});
+\`\`\`
+
+Example index.js structure (with playbook integration):
 \`\`\`javascript
 import express from "express";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -51,10 +94,30 @@ const server = new McpServer({
   version: "1.0.0"
 });
 
+async function getPlaybookContext(toolName, query) {
+  try {
+    const { Client } = await import("@modelcontextprotocol/sdk/client/index.js");
+    const { StreamableHTTPClientTransport } = await import("@modelcontextprotocol/sdk/client/streamableHttp.js");
+    const client = new Client({ name: toolName, version: "1.0.0" });
+    const transport = new StreamableHTTPClientTransport(new URL("http://tool-playbook:3000/mcp"));
+    await client.connect(transport);
+    try {
+      const result = await client.callTool({ name: "search_playbook", arguments: { query, toolName, topK: 3 } });
+      return JSON.parse(result.content[0].text);
+    } finally {
+      await client.close();
+    }
+  } catch {
+    return [];
+  }
+}
+
 server.tool("tool_name", "Description", { param: z.string() }, async ({ param }) => {
   try {
+    const playbook = await getPlaybookContext("tool-name", \`tool_name \${param}\`);
     // implementation
-    return { content: [{ type: "text", text: JSON.stringify(result) }] };
+    const result = {}; // replace with actual result
+    return { content: [{ type: "text", text: JSON.stringify({ result, playbook }) }] };
   } catch (err) {
     return { content: [{ type: "text", text: \`Error: \${err.message}\` }], isError: true };
   }

@@ -55,7 +55,7 @@ Cosi's `/mcp` endpoint is a standards-compliant MCP server. Connect Claude Code,
 │  ┌────────▼─────────────────────▼──────────────────────────────────┐ │
 │  │                         Core Services                           │ │
 │  │                                                                 │ │
-│  │  bedrock-client   ←──── AWS Bedrock (Claude Sonnet 4)           │ │
+│  │  bedrock-client   ←──── AWS Bedrock (Claude Sonnet 4.6)         │ │
 │  │  tool-generator   ←──── generates index.js, tool.json, etc.     │ │
 │  │  registry         ←──── discovers tools/, health-checks         │ │
 │  │  session-store    ←──── Redis (24h TTL, sliding window)         │ │
@@ -121,7 +121,7 @@ Cosi's `/mcp` endpoint is a standards-compliant MCP server. Connect Claude Code,
 
 ┌──────────────────────────────────────────────────────────────────────┐
 │                           AWS Bedrock                                │
-│               Claude Sonnet 4 (configurable per deployment)          │
+│              Claude Sonnet 4.6 (configurable per deployment)         │
 │                                                                      │
 │  · Chat responses and tool routing                                   │
 │  · Cosita code generation (index.js, tool.json, Dockerfile)          │
@@ -325,7 +325,7 @@ Secrets needed: aws/cost-explorer and slack/webhook-url.
 - Docker and Docker Compose v2
 - `make` and `openssl`
 - AWS credentials available in your environment (instance profile, `~/.aws/credentials`, or environment variables — no keys in `.env`)
-- AWS Bedrock enabled in your region (default: Claude Sonnet 4, `us-west-2`)
+- AWS Bedrock enabled in your region (default: Claude Sonnet 4.6, `us-west-2`)
 - A git repository Cosi can commit generated tools to (can be this repo)
 
 **Kubernetes (Helm)**
@@ -355,8 +355,8 @@ GIT_BRANCH=main
 # AWS region where Bedrock is enabled
 AWS_REGION=us-west-2
 
-# Bedrock model (Claude Sonnet 4 default — change if needed)
-BEDROCK_MODEL_ID=anthropic.claude-sonnet-4-20250514-v1:0
+# Bedrock model (Claude Sonnet 4.6 default — change if needed)
+BEDROCK_MODEL_ID=us.anthropic.claude-sonnet-4-6
 
 # Prefix for secrets in AWS Secrets Manager
 AWS_SECRET_PREFIX=cosi/
@@ -453,7 +453,7 @@ helm upgrade cosi cosi/cosi -f values.yaml
 |---|---|---|
 | `orchestrator.git.repoUrl` | `""` | **Required.** Git repo for cosita commits |
 | `orchestrator.aws.region` | `us-west-2` | AWS region |
-| `orchestrator.aws.bedrockModelId` | Claude Sonnet 4 | Bedrock model ID |
+| `orchestrator.aws.bedrockModelId` | `us.anthropic.claude-sonnet-4-6` | Bedrock model ID |
 | `aws.existingSecret` | `""` | K8s secret with `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` |
 | `serviceAccount.annotations` | `{}` | IRSA role annotation |
 | `nginx.service.type` | `ClusterIP` | `LoadBalancer` to expose externally |

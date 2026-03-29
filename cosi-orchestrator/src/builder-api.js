@@ -225,7 +225,7 @@ router.get("/settings", async (req, res) => {
       bedrockModelId:
         settings.bedrockModelId ||
         process.env.BEDROCK_MODEL_ID ||
-        "us.anthropic.claude-sonnet-4-5-20251001-v1:0",
+        "us.anthropic.claude-sonnet-4-6",
       awsSecretPrefix:
         settings.awsSecretPrefix || process.env.AWS_SECRET_PREFIX || "cosi/",
     });

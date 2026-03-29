@@ -24,7 +24,7 @@ export function reinitialize() {
 export function getModelId() {
   return (
     process.env.BEDROCK_MODEL_ID ||
-    "us.anthropic.claude-sonnet-4-5-20251001-v1:0"
+    "us.anthropic.claude-sonnet-4-6"
   );
 }
 

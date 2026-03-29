@@ -13,6 +13,7 @@ export async function createApp() {
     res.json({ status: "ok", service: "cosi-orchestrator" });
   });
 
+  app.get("/mcp", (_req, res) => res.status(405).end());
   app.post("/mcp", handleMcpRequest);
   app.use("/api", builderApi);
   app.use("/api/user", userApi);

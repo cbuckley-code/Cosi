@@ -2,6 +2,7 @@ import express from "express";
 import { v4 as uuidv4 } from "uuid";
 import { chatStream } from "./bedrock-client.js";
 import { generateTool, writeToolFiles, toolExists } from "./tool-generator.js";
+import { validateGeneratedTool } from "./tool-validator.js";
 import { commitAndPush } from "./git-client.js";
 import { getToolList, loadRegistry } from "./registry.js";
 import { appendMessages, deleteSession } from "./session-store.js";
@@ -141,13 +142,47 @@ router.post("/builder/chat", async (req, res) => {
 
         sendEvent("status", { message: `Generating ${toolName} tool files...` });
 
-        const generated = await generateTool(
-          `Tool name: ${requirements.toolName}\nDescription: ${requirements.description}\nTools: ${JSON.stringify(requirements.tools, null, 2)}\nSecrets: ${JSON.stringify(requirements.secrets)}\nIntegrations: ${requirements.integrations?.join(", ")}`,
-          []
-        );
-
+        const toolSpec = `Tool name: ${requirements.toolName}\nDescription: ${requirements.description}\nTools: ${JSON.stringify(requirements.tools, null, 2)}\nSecrets: ${JSON.stringify(requirements.secrets)}\nIntegrations: ${requirements.integrations?.join(", ")}`;
+        let generated = await generateTool(toolSpec, []);
         const actualToolName = generated.toolName || toolName;
-        sendEvent("status", { message: `Writing files for ${actualToolName}...` });
+
+        // ── Validate: build image, start container, run health + MCP checks ──
+        sendEvent("status", { message: `Validating ${actualToolName} (building container…)` });
+        let validation = await validateGeneratedTool(actualToolName, generated.files);
+
+        if (validation !== null && !validation.success) {
+          sendEvent("status", { message: `Validation failed — asking AI to fix (${validation.error || "see logs"})` });
+          const errorSummary = [validation.error, ...(validation.logs || [])]
+            .filter(Boolean)
+            .join("\n")
+            .slice(0, 3000);
+
+          const fixed = await generateTool(toolSpec, [
+            { role: "assistant", content: [{ text: `I generated a tool called ${actualToolName} but it failed container validation.` }] },
+            { role: "user", content: [{ text: `The tool failed validation with this error:\n\n${errorSummary}\n\nPlease fix the issues and regenerate the complete tool.` }] },
+          ]);
+          generated = fixed;
+
+          sendEvent("status", { message: `Retrying validation for ${actualToolName}…` });
+          validation = await validateGeneratedTool(actualToolName, generated.files);
+
+          if (validation !== null && !validation.success) {
+            const errMsg = validation.error || "Unknown error";
+            sendEvent("error", {
+              message: `Tool validation failed after retry: ${errMsg}. Generated files are saved to tools/${actualToolName}/ for manual inspection.`,
+            });
+            await writeToolFiles(actualToolName, generated.files);
+            sendEvent("done", { response: fullResponse });
+            res.end();
+            return;
+          }
+        }
+
+        if (validation?.success) {
+          sendEvent("status", { message: `Validation passed — writing files for ${actualToolName}...` });
+        } else {
+          sendEvent("status", { message: `Writing files for ${actualToolName}...` });
+        }
 
         await writeToolFiles(actualToolName, generated.files);
 

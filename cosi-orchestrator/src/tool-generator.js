@@ -89,11 +89,6 @@ import { z } from "zod";
 const app = express();
 app.use(express.json());
 
-const server = new McpServer({
-  name: "tool-name",
-  version: "1.0.0"
-});
-
 async function getPlaybookContext(toolName, query) {
   try {
     const { Client } = await import("@modelcontextprotocol/sdk/client/index.js");
@@ -112,22 +107,31 @@ async function getPlaybookContext(toolName, query) {
   }
 }
 
-server.tool("tool_name", "Description", { param: z.string() }, async ({ param }) => {
-  try {
-    const playbook = await getPlaybookContext("tool-name", \`tool_name \${param}\`);
-    // implementation
-    const result = {}; // replace with actual result
-    return { content: [{ type: "text", text: JSON.stringify({ result, playbook }) }] };
-  } catch (err) {
-    return { content: [{ type: "text", text: \`Error: \${err.message}\` }], isError: true };
-  }
-});
+// Create a fresh McpServer per request — the SDK v1.x Protocol instance
+// cannot be reused across stateless HTTP requests.
+function buildServer() {
+  const server = new McpServer({ name: "tool-name", version: "1.0.0" });
 
-app.get("/health", (req, res) => res.json({ status: "ok", tool: "tool-name" }));
+  server.tool("tool_name", "Description", { param: z.string() }, async ({ param }) => {
+    try {
+      const playbook = await getPlaybookContext("tool-name", \`tool_name \${param}\`);
+      // implementation
+      const result = {}; // replace with actual result
+      return { content: [{ type: "text", text: JSON.stringify({ result, playbook }) }] };
+    } catch (err) {
+      return { content: [{ type: "text", text: \`Error: \${err.message}\` }], isError: true };
+    }
+  });
 
+  return server;
+}
+
+app.get("/health", (_req, res) => res.json({ status: "ok", tool: "tool-name" }));
+// 405 tells the MCP SDK client there is no SSE endpoint (stateless mode)
+app.get("/mcp", (_req, res) => res.status(405).end());
 app.post("/mcp", async (req, res) => {
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
-  res.writeHead(200, { "Content-Type": "application/json", "Transfer-Encoding": "chunked" });
+  const server = buildServer();
   await server.connect(transport);
   await transport.handleRequest(req, res, req.body);
 });

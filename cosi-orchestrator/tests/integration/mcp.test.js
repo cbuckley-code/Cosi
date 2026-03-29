@@ -76,13 +76,15 @@ function mcpPost(body) {
 }
 
 // Parse the JSON-RPC response out of a raw MCP response body.
-// In stateless mode the transport returns either a single JSON object or
-// newline-delimited JSON objects; we look for the one with id + result/error.
+// The transport may respond with plain JSON or SSE format (lines prefixed
+// with "data: "). Strip the SSE prefix before attempting JSON.parse so both
+// formats work.
 function parseMcpBody(raw) {
   if (!raw) return null;
   for (const line of raw.trim().split("\n")) {
+    const json = line.startsWith("data: ") ? line.slice(6) : line;
     try {
-      const obj = JSON.parse(line);
+      const obj = JSON.parse(json);
       if (obj.jsonrpc && (obj.result !== undefined || obj.error !== undefined)) {
         return obj;
       }

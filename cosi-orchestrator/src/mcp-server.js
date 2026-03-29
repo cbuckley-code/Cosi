@@ -3,10 +3,10 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { getAllTools, callTool } from "./registry.js";
 import { z } from "zod";
 
-let mcpServer = null;
-
 /**
  * Build a fresh McpServer instance with all currently registered tools.
+ * Called once per request so each POST /mcp gets a clean Protocol instance
+ * (SDK v1.28+ guards against reuse across requests in stateless mode).
  */
 export function buildMcpServer() {
   const server = new McpServer({
@@ -44,7 +44,6 @@ export function buildMcpServer() {
     );
   }
 
-  mcpServer = server;
   return server;
 }
 
@@ -101,23 +100,11 @@ function buildZodShape(inputSchema) {
  * Called for each POST /mcp request.
  */
 export async function handleMcpRequest(req, res) {
-  if (!mcpServer) {
-    buildMcpServer();
-  }
-
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
   });
 
-  res.writeHead(200, {
-    "Content-Type": "application/json",
-    "Transfer-Encoding": "chunked",
-  });
-
-  await mcpServer.connect(transport);
+  const server = buildMcpServer();
+  await server.connect(transport);
   await transport.handleRequest(req, res, req.body);
-}
-
-export function getMcpServer() {
-  return mcpServer;
 }

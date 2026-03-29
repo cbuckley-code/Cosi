@@ -1,6 +1,6 @@
 import express from "express";
 import { loadRegistry } from "./registry.js";
-import { buildMcpServer, handleMcpRequest } from "./mcp-server.js";
+import { handleMcpRequest } from "./mcp-server.js";
 import builderApi from "./builder-api.js";
 import userApi from "./user-api.js";
 import chatApi from "./chat-api.js";
@@ -19,7 +19,6 @@ export async function createApp() {
   app.use("/api", chatApi);
 
   await loadRegistry();
-  buildMcpServer();
 
   return app;
 }

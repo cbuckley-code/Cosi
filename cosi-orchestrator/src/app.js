@@ -3,6 +3,7 @@ import { loadRegistry } from "./registry.js";
 import { buildMcpServer, handleMcpRequest } from "./mcp-server.js";
 import builderApi from "./builder-api.js";
 import userApi from "./user-api.js";
+import chatApi from "./chat-api.js";
 
 export async function createApp() {
   const app = express();
@@ -15,6 +16,7 @@ export async function createApp() {
   app.post("/mcp", handleMcpRequest);
   app.use("/api", builderApi);
   app.use("/api/user", userApi);
+  app.use("/api", chatApi);
 
   await loadRegistry();
   buildMcpServer();

@@ -43,16 +43,16 @@ beforeEach(() => {
   });
 });
 
-describe("POST /api/builder/chat", () => {
+describe("POST /api/chat", () => {
   it("rejects requests missing the message field", async () => {
-    const res = await request(app).post("/api/builder/chat").send({});
+    const res = await request(app).post("/api/chat").send({});
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty("error");
   });
 
   it("returns text/event-stream content type", async () => {
     const res = await request(app)
-      .post("/api/builder/chat")
+      .post("/api/chat")
       .send({ message: "Hello" });
 
     expect(res.headers["content-type"]).toMatch(/text\/event-stream/);
@@ -60,7 +60,7 @@ describe("POST /api/builder/chat", () => {
 
   it("streams session → start → chunk(s) → done events in order", async () => {
     const res = await request(app)
-      .post("/api/builder/chat")
+      .post("/api/chat")
       .send({ message: "Hello" });
 
     const events = parseSSEEvents(res.text);
@@ -78,7 +78,7 @@ describe("POST /api/builder/chat", () => {
 
   it("concatenates chunk text to form the full response", async () => {
     const res = await request(app)
-      .post("/api/builder/chat")
+      .post("/api/chat")
       .send({ message: "Hello" });
 
     const fullText = parseSSEEvents(res.text)
@@ -89,9 +89,9 @@ describe("POST /api/builder/chat", () => {
     expect(fullText).toBe("Hello, world!");
   });
 
-  it("includes a sessionId in the session event", async () => {
+  it("includes a UUID sessionId in the session event", async () => {
     const res = await request(app)
-      .post("/api/builder/chat")
+      .post("/api/chat")
       .send({ message: "Hello" });
 
     const sessionEvent = parseSSEEvents(res.text).find(
@@ -103,7 +103,7 @@ describe("POST /api/builder/chat", () => {
   it("accepts an optional sessionId and echoes it back", async () => {
     const sessionId = "11111111-2222-3333-4444-555555555555";
     const res = await request(app)
-      .post("/api/builder/chat")
+      .post("/api/chat")
       .send({ message: "Hello", sessionId });
 
     const sessionEvent = parseSSEEvents(res.text).find(
@@ -119,7 +119,7 @@ describe("POST /api/builder/chat", () => {
     });
 
     const res = await request(app)
-      .post("/api/builder/chat")
+      .post("/api/chat")
       .send({ message: "Hello" });
 
     const errorEvent = parseSSEEvents(res.text).find(
@@ -127,5 +127,34 @@ describe("POST /api/builder/chat", () => {
     );
     expect(errorEvent).toBeDefined();
     expect(errorEvent.message).toContain("Bedrock unavailable");
+  });
+
+  it("calls chatStream with the user message", async () => {
+    vi.mocked(bedrockClient.chatStream).mockClear();
+
+    await request(app).post("/api/chat").send({ message: "Tell me something" });
+
+    expect(vi.mocked(bedrockClient.chatStream).mock.calls).toHaveLength(1);
+    const messages = vi.mocked(bedrockClient.chatStream).mock.calls[0][0];
+    expect(messages.at(-1).role).toBe("user");
+  });
+});
+
+describe("DELETE /api/chat/session/:id", () => {
+  it("returns success for any session ID", async () => {
+    const res = await request(app).delete(
+      "/api/chat/session/test-session-123"
+    );
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ success: true });
+  });
+});
+
+describe("GET /api/chat/tools", () => {
+  it("returns a tools array", async () => {
+    const res = await request(app).get("/api/chat/tools");
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("tools");
+    expect(Array.isArray(res.body.tools)).toBe(true);
   });
 });

@@ -35,15 +35,16 @@ beforeAll(async () => {
   app = await createApp();
 });
 
-describe("Builder session lifecycle", () => {
+describe("Session lifecycle via /api/chat", () => {
   it("creates a new session when no sessionId is provided", async () => {
     const res = await request(app)
-      .post("/api/builder/chat")
+      .post("/api/chat")
       .send({ message: "Hello" });
 
     expect(res.status).toBe(200);
-    const events = parseSSEEvents(res.text);
-    const sessionEvent = events.find((e) => e.type === "session");
+    const sessionEvent = parseSSEEvents(res.text).find(
+      (e) => e.type === "session"
+    );
     expect(sessionEvent).toBeDefined();
     expect(typeof sessionEvent.sessionId).toBe("string");
     expect(sessionEvent.sessionId.length).toBeGreaterThan(0);
@@ -51,7 +52,7 @@ describe("Builder session lifecycle", () => {
 
   it("reuses an existing session when sessionId is provided", async () => {
     const first = await request(app)
-      .post("/api/builder/chat")
+      .post("/api/chat")
       .send({ message: "First message" });
 
     const { sessionId } = parseSSEEvents(first.text).find(
@@ -59,7 +60,7 @@ describe("Builder session lifecycle", () => {
     );
 
     const second = await request(app)
-      .post("/api/builder/chat")
+      .post("/api/chat")
       .send({ message: "Second message", sessionId });
 
     const sessionEvent2 = parseSSEEvents(second.text).find(
@@ -68,9 +69,9 @@ describe("Builder session lifecycle", () => {
     expect(sessionEvent2.sessionId).toBe(sessionId);
   });
 
-  it("DELETE /api/builder/session/:id clears the session", async () => {
+  it("DELETE /api/chat/session/:id clears the session", async () => {
     const chatRes = await request(app)
-      .post("/api/builder/chat")
+      .post("/api/chat")
       .send({ message: "I want to delete this" });
 
     const sessionEvent = parseSSEEvents(chatRes.text).find(
@@ -80,39 +81,7 @@ describe("Builder session lifecycle", () => {
     const { sessionId } = sessionEvent;
 
     const delRes = await request(app).delete(
-      `/api/builder/session/${sessionId}`
-    );
-    expect(delRes.status).toBe(200);
-    expect(delRes.body).toEqual({ success: true });
-  });
-});
-
-describe("User session lifecycle", () => {
-  it("creates a new session for user chat", async () => {
-    const res = await request(app)
-      .post("/api/user/chat")
-      .send({ message: "Hello" });
-
-    expect(res.status).toBe(200);
-    const sessionEvent = parseSSEEvents(res.text).find(
-      (e) => e.type === "session"
-    );
-    expect(typeof sessionEvent.sessionId).toBe("string");
-  });
-
-  it("DELETE /api/user/session/:id clears the session", async () => {
-    const chatRes = await request(app)
-      .post("/api/user/chat")
-      .send({ message: "Delete me" });
-
-    const sessionEvent = parseSSEEvents(chatRes.text).find(
-      (e) => e.type === "session"
-    );
-    expect(sessionEvent).toBeDefined();
-    const { sessionId } = sessionEvent;
-
-    const delRes = await request(app).delete(
-      `/api/user/session/${sessionId}`
+      `/api/chat/session/${sessionId}`
     );
     expect(delRes.status).toBe(200);
     expect(delRes.body).toEqual({ success: true });

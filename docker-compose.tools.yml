@@ -6,3 +6,7 @@ services:
     networks:
       - cosi-network
     restart: unless-stopped
+networks:
+  cosi-network:
+    external: true
+    name: cosi_cosi-network

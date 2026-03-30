@@ -157,13 +157,16 @@ Generate ONLY the JSON code block, no other text before or after.`;
  * Parse the JSON from a code block in the LLM response.
  */
 function parseGeneratedOutput(text) {
-  // Try to extract JSON from code block
-  const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (codeBlockMatch) {
-    return JSON.parse(codeBlockMatch[1].trim());
+  // Strip markdown code fences if present
+  let cleaned = text.trim();
+  cleaned = cleaned.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/, "");
+  // Find the outermost JSON object
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  if (start !== -1 && end > start) {
+    return JSON.parse(cleaned.slice(start, end + 1));
   }
-  // Try raw JSON
-  return JSON.parse(text.trim());
+  return JSON.parse(cleaned);
 }
 
 /**

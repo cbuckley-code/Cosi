@@ -330,9 +330,10 @@ Secrets needed: aws/cost-explorer and slack/webhook-url.
 **Docker Compose**
 - Docker and Docker Compose v2
 - `make` and `openssl`
-- AWS credentials available in your environment (instance profile, `~/.aws/credentials`, or environment variables — no keys in `.env`)
+- AWS credentials (instance profile, `~/.aws/credentials`, or environment variables)
 - AWS Bedrock enabled in your region (default: Claude Sonnet 4.6, `us-west-2`)
 - A git repository Cosi can commit generated tools to (can be this repo)
+- If your git repo uses SSH (e.g. `git@github.com:...`), an SSH key that can authenticate to the remote
 
 **Kubernetes (Helm)**
 - Kubernetes 1.24+, Helm 3.10+
@@ -355,7 +356,8 @@ Edit `.env`:
 
 ```bash
 # Git repo Cosi commits generated cositas to — can be this repo
-GIT_REPO_URL=https://github.com/your-org/cosi.git
+# Supports HTTPS or SSH URLs
+GIT_REPO_URL=git@github.com:your-org/cosi.git
 GIT_BRANCH=main
 
 # AWS region where Bedrock is enabled
@@ -366,9 +368,28 @@ BEDROCK_MODEL_ID=us.anthropic.claude-sonnet-4-6
 
 # Prefix for secrets in AWS Secrets Manager
 AWS_SECRET_PREFIX=cosi/
+
+# AWS credentials (if not using instance profile or mounted ~/.aws/credentials)
+AWS_ACCESS_KEY_ID=your-access-key-id
+AWS_SECRET_ACCESS_KEY=your-secret-access-key
 ```
 
-AWS credentials are **not** placed in `.env`. Cosi uses the standard AWS credential chain — if your shell can run `aws sts get-caller-identity`, the containers will have access.
+### AWS credentials
+
+Set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` in `.env` to pass credentials into the orchestrator container. The `.env` file is gitignored so credentials are never committed. Alternatively, if running on an EC2 instance or ECS task, you can omit these and rely on the instance profile.
+
+### SSH key for git (SSH repo URLs)
+
+If your `GIT_REPO_URL` uses SSH (e.g. `git@github.com:...`), the orchestrator and builder containers need access to your SSH private key. The `docker-compose.yml` mounts your key read-only:
+
+```yaml
+volumes:
+  - ~/.ssh/id_ed25519_github:/root/.ssh/id_ed25519_github:ro
+```
+
+Update the path in `docker-compose.yml` if your key has a different name or location. Both the orchestrator and builder Dockerfiles include `openssh-client` and pre-populate GitHub's host key in `known_hosts`.
+
+If your repo uses HTTPS instead, no SSH configuration is needed.
 
 ### 2. Build and start
 

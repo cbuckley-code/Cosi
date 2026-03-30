@@ -1,7 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import SpaceBetween from "@cloudscape-design/components/space-between";
 import Box from "@cloudscape-design/components/box";
-import Input from "@cloudscape-design/components/input";
 import Button from "@cloudscape-design/components/button";
 import StatusIndicator from "@cloudscape-design/components/status-indicator";
 import ChatMessage from "./ChatMessage.jsx";
@@ -196,42 +195,70 @@ export default function Chat() {
 
         {/* Input */}
         <div className="chat-input-area">
-          <SpaceBetween direction="horizontal" size="s">
-            <Button
-              variant="icon"
-              iconName="upload"
-              onClick={openFilePicker}
+          <div className="chat-input-container">
+            <textarea
+              className="chat-textarea"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+              placeholder="Ask a question"
               disabled={isStreaming}
-              ariaLabel="Attach file"
+              rows={1}
+              onInput={(e) => {
+                e.target.style.height = "auto";
+                e.target.style.height =
+                  Math.min(e.target.scrollHeight, 160) + "px";
+              }}
             />
-            {isSupported && (
-              <MicButton
-                isListening={isListening}
-                disabled={isStreaming}
-                onStart={startListening}
-                onStop={stopListening}
-              />
-            )}
-            <div style={{ flex: 1 }}>
-              <Input
-                value={inputValue}
-                onChange={({ detail }) => setInputValue(detail.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Chat with your tools or ask me to build a new one…"
-                disabled={isStreaming}
-              />
+            <div className="chat-input-controls">
+              <div className="chat-input-controls-left">
+                <button
+                  className="chat-icon-btn"
+                  onClick={openFilePicker}
+                  disabled={isStreaming}
+                  aria-label="Attach file"
+                  title="Attach file"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                </button>
+                {isSupported && (
+                  <MicButton
+                    isListening={isListening}
+                    disabled={isStreaming}
+                    onStart={startListening}
+                    onStop={stopListening}
+                  />
+                )}
+              </div>
+              <button
+                className="chat-send-btn"
+                onClick={handleSend}
+                disabled={
+                  (!inputValue.trim() && attachments.length === 0) || isStreaming
+                }
+                aria-label="Send message"
+                title="Send message"
+              >
+                {isStreaming ? (
+                  <span className="chat-send-spinner" />
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13" />
+                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                  </svg>
+                )}
+              </button>
             </div>
-            <Button
-              variant="primary"
-              onClick={handleSend}
-              disabled={
-                (!inputValue.trim() && attachments.length === 0) || isStreaming
-              }
-              loading={isStreaming}
-            >
-              Send
-            </Button>
-          </SpaceBetween>
+          </div>
         </div>
       </div>
 

@@ -38,9 +38,13 @@ services:
     volumes:
       - ./tools:/app/tools:ro
       - ./:/app/repo
+      - ~/.ssh/id_ed25519_github:/root/.ssh/id_ed25519_github:ro
+      - ~/.ssh/id_ed25519_github.pub:/root/.ssh/id_ed25519_github.pub:ro
     environment:
       - AWS_REGION=${AWS_REGION:-us-west-2}
       - AWS_SECRET_PREFIX=${AWS_SECRET_PREFIX:-cosi/}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - BEDROCK_MODEL_ID=${BEDROCK_MODEL_ID:-anthropic.claude-sonnet-4-20250514-v1:0}
       - GIT_REPO_URL=${GIT_REPO_URL}
       - GIT_BRANCH=${GIT_BRANCH:-main}
@@ -62,6 +66,8 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./:/workspace
+      - ~/.ssh/id_ed25519_github:/root/.ssh/id_ed25519_github:ro
+      - ~/.ssh/id_ed25519_github.pub:/root/.ssh/id_ed25519_github.pub:ro
     privileged: true
     environment:
       - POLL_INTERVAL=${POLL_INTERVAL:-5000}

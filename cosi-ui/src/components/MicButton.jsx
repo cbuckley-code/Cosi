@@ -41,7 +41,7 @@ export function MicButton({ isListening, disabled, onStart, onStop }) {
         height: 32,
         padding: 0,
         border: "none",
-        borderRadius: "50%",
+        borderRadius: 6,
         cursor: disabled ? "not-allowed" : "pointer",
         background: isListening ? "#c0392b" : "transparent",
         color: isListening ? "#fff" : "var(--color-text-body-secondary, #8d9dab)",

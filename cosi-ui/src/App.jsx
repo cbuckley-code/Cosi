@@ -2,14 +2,15 @@ import React, { useState, useEffect } from "react";
 import AppLayout from "@cloudscape-design/components/app-layout";
 import SideNavigation from "@cloudscape-design/components/side-navigation";
 import Box from "@cloudscape-design/components/box";
+import Icon from "@cloudscape-design/components/icon";
 import StatusIndicator from "@cloudscape-design/components/status-indicator";
 import Chat from "./components/Chat.jsx";
 import Settings from "./components/Settings.jsx";
 
 const NAV_ITEMS = [
-  { type: "link", text: "Chat", href: "#chat" },
+  { type: "link", text: <><Icon name="search-gen-ai" /> Chat</>, href: "#chat" },
   { type: "divider" },
-  { type: "link", text: "Settings", href: "#settings" },
+  { type: "link", text: <><Icon name="settings" /> Settings</>, href: "#settings" },
 ];
 
 function useActiveView() {

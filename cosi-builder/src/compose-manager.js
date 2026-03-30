@@ -6,9 +6,7 @@ import { promisify } from "util";
 
 const execAsync = promisify(execFile);
 
-/**
- * Scan tools/*/tool.json and regenerate docker-compose.tools.yml.
- */
+// Scan tools/<name>/tool.json and regenerate docker-compose.tools.yml.
 export async function updateCompose(workspace) {
   const toolsDir = path.join(workspace, "tools");
   const composePath = path.join(workspace, "docker-compose.tools.yml");
@@ -76,6 +74,8 @@ export async function updateCompose(workspace) {
     try {
       await execAsync("docker", [
         "compose",
+        "-p",
+        "cosi",
         "-f",
         path.join(workspace, "docker-compose.yml"),
         "-f",

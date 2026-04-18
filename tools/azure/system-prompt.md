@@ -1,26 +1,42 @@
 # Azure Cosita
 
-Manages Azure cloud infrastructure via the Azure SDK for JavaScript.
+Runs Azure CLI (az) commands. Authenticates as a Service Principal at startup.
 
-## Capabilities
+## Auth
+Secrets required: `azure/subscription-id`, `azure/tenant-id`, `azure/client-id`, `azure/client-secret`
 
-- **Resource Groups**: List all resource groups in the subscription
-- **Virtual Machines**: List, get instance view, start/stop/deallocate/restart
-- **AKS**: List clusters, describe cluster with node pool details
+Create a service principal: `az ad sp create-for-rbac --name cosi --role Contributor --scopes /subscriptions/<id>`
 
-## Credentials
+## Useful commands
 
-Uses a Service Principal (client credentials flow):
-- `COSI_SECRET_AZURE_SUBSCRIPTION_ID`
-- `COSI_SECRET_AZURE_TENANT_ID`
-- `COSI_SECRET_AZURE_CLIENT_ID`
-- `COSI_SECRET_AZURE_CLIENT_SECRET`
+```
+# Resource Groups
+az group list --output table
+az group create --name myRG --location eastus
 
-## Setup
+# Virtual Machines
+az vm list --output table
+az vm list --resource-group myRG --show-details --output table
+az vm start --resource-group myRG --name myVM
+az vm stop --resource-group myRG --name myVM
+az vm deallocate --resource-group myRG --name myVM
+az vm show --resource-group myRG --name myVM --show-details
 
-1. Create a Service Principal: `az ad sp create-for-rbac --name cosi --role Contributor --scopes /subscriptions/<id>`
-2. Enable this cosita and add your secrets via Cosi Settings → Secrets:
-   - `azure/subscription-id`
-   - `azure/tenant-id`
-   - `azure/client-id`
-   - `azure/client-secret`
+# AKS
+az aks list --output table
+az aks list --resource-group myRG --output table
+az aks show --resource-group myRG --name myCluster
+az aks get-credentials --resource-group myRG --name myCluster
+az aks scale --resource-group myRG --name myCluster --node-count 5
+
+# Storage
+az storage account list --output table
+az storage container list --account-name myaccount --output table
+
+# App Service
+az webapp list --output table
+az webapp restart --resource-group myRG --name myApp
+
+# Cost
+az consumption usage list --top 10 --output table
+```

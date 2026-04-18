@@ -1,72 +1,22 @@
 {
   "name": "azure",
-  "description": "Azure cloud infrastructure management — Virtual Machines, AKS, Storage, and Resource Groups",
+  "description": "Azure cloud infrastructure management via the Azure CLI (az). Ask Claude to run any az command — VMs, AKS, Storage, Resource Groups, App Service, Functions, and more.",
   "version": "1.0.0",
   "enabled": false,
   "tools": [
     {
-      "name": "list_resource_groups",
-      "description": "List all resource groups in the subscription",
-      "inputSchema": {
-        "type": "object",
-        "properties": {}
-      }
-    },
-    {
-      "name": "list_virtual_machines",
-      "description": "List virtual machines, optionally filtered by resource group",
+      "name": "az",
+      "description": "Run any Azure CLI command. Pass all arguments after 'az' as an array.\n\nExamples:\n- List VMs: [\"vm\", \"list\", \"--output\", \"table\"]\n- List resource groups: [\"group\", \"list\", \"--output\", \"table\"]\n- AKS clusters: [\"aks\", \"list\", \"--output\", \"json\"]\n- Storage accounts: [\"storage\", \"account\", \"list\"]\n- App services: [\"webapp\", \"list\", \"--resource-group\", \"myRG\"]\n- Get VM status: [\"vm\", \"show\", \"-g\", \"myRG\", \"-n\", \"myVM\", \"--show-details\"]",
       "inputSchema": {
         "type": "object",
         "properties": {
-          "resourceGroup": { "type": "string" }
-        }
-      }
-    },
-    {
-      "name": "get_vm_instance_view",
-      "description": "Get detailed status and instance view for a virtual machine",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "resourceGroup": { "type": "string" },
-          "vmName": { "type": "string" }
+          "args": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Azure CLI arguments, e.g. [\"vm\", \"list\", \"--resource-group\", \"myRG\", \"--output\", \"table\"]"
+          }
         },
-        "required": ["resourceGroup", "vmName"]
-      }
-    },
-    {
-      "name": "manage_virtual_machine",
-      "description": "Start, stop, deallocate, or restart a virtual machine",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "resourceGroup": { "type": "string" },
-          "vmName": { "type": "string" },
-          "action": { "type": "string", "enum": ["start", "stop", "deallocate", "restart"] }
-        },
-        "required": ["resourceGroup", "vmName", "action"]
-      }
-    },
-    {
-      "name": "list_aks_clusters",
-      "description": "List AKS Kubernetes clusters, optionally filtered by resource group",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "resourceGroup": { "type": "string" }
-        }
-      }
-    },
-    {
-      "name": "describe_aks_cluster",
-      "description": "Get details of an AKS cluster including Kubernetes version, node pools, and FQDN",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "resourceGroup": { "type": "string" },
-          "clusterName": { "type": "string" }
-        },
-        "required": ["resourceGroup", "clusterName"]
+        "required": ["args"]
       }
     }
   ],

@@ -1,24 +1,44 @@
 # GCP Cosita
 
-Manages Google Cloud Platform infrastructure via the Google Cloud Node.js SDK.
+Runs Google Cloud CLI (gcloud) commands. Activates a service account from credentials JSON at startup.
 
-## Capabilities
+## Auth
+Secrets required: `gcp/project-id`, `gcp/credentials-json` (full JSON content of service account key file)
 
-- **Compute Engine**: List instances across zones, start/stop/reset, describe instance details
-- **GKE**: List clusters across regions, describe cluster with node pool details
-- **Cloud Storage**: List buckets with location and storage class info
+Create key: `gcloud iam service-accounts keys create key.json --iam-account=sa@project.iam.gserviceaccount.com`
 
-## Credentials
+## Useful commands
 
-- `COSI_SECRET_GCP_PROJECT_ID` — your GCP project ID
-- `COSI_SECRET_GCP_CREDENTIALS_JSON` — JSON content of a service account key file
+```
+# Compute Engine
+gcloud compute instances list --format table
+gcloud compute instances describe my-vm --zone us-central1-a
+gcloud compute instances start my-vm --zone us-central1-a
+gcloud compute instances stop my-vm --zone us-central1-a
+gcloud compute ssh my-vm --zone us-central1-a --command "uptime"
 
-If running on GCP infrastructure (GCE, GKE, Cloud Run), credentials can be omitted and the SDK will use the workload identity / metadata server automatically.
+# GKE
+gcloud container clusters list
+gcloud container clusters describe my-cluster --region us-central1
+gcloud container clusters get-credentials my-cluster --region us-central1
+gcloud container clusters resize my-cluster --num-nodes=5 --region us-central1
 
-## Setup
+# Cloud Storage
+gcloud storage ls
+gcloud storage ls gs://my-bucket
+gcloud storage cp file.txt gs://my-bucket/
+gcloud storage cat gs://my-bucket/file.txt
 
-1. Create a service account with Compute Viewer, Container Viewer, and Storage Object Viewer roles
-2. Download the key file: `gcloud iam service-accounts keys create key.json --iam-account=<sa>@<project>.iam.gserviceaccount.com`
-3. Enable this cosita and add your secrets via Cosi Settings → Secrets:
-   - `gcp/project-id` → your GCP project ID
-   - `gcp/credentials-json` → paste the full contents of key.json
+# Cloud Run
+gcloud run services list --platform managed
+gcloud run services describe my-service --platform managed --region us-central1
+gcloud run deploy my-service --image gcr.io/myproject/myimage --platform managed --region us-central1
+
+# IAM
+gcloud projects get-iam-policy my-project
+gcloud iam service-accounts list
+
+# Cloud Functions
+gcloud functions list
+gcloud functions describe my-function
+```

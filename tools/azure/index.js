@@ -2,141 +2,57 @@ import express from "express";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
-import { ClientSecretCredential } from "@azure/identity";
-import { ComputeManagementClient } from "@azure/arm-compute";
-import { ContainerServiceClient } from "@azure/arm-containerservice";
-import { ResourceManagementClient } from "@azure/arm-resources";
+import { spawn } from "child_process";
 
-const SUBSCRIPTION_ID = process.env.COSI_SECRET_AZURE_SUBSCRIPTION_ID;
-const TENANT_ID = process.env.COSI_SECRET_AZURE_TENANT_ID;
-const CLIENT_ID = process.env.COSI_SECRET_AZURE_CLIENT_ID;
-const CLIENT_SECRET = process.env.COSI_SECRET_AZURE_CLIENT_SECRET;
+function run(binary, args, { env = {}, stdin } = {}) {
+  return new Promise((resolve) => {
+    const proc = spawn(binary, args, {
+      env: { ...process.env, ...env },
+      timeout: 120_000,
+    });
+    let out = "";
+    proc.stdout.on("data", (d) => { out += d; });
+    proc.stderr.on("data", (d) => { out += d; });
+    proc.stdin.end(stdin ?? "");
+    proc.on("close", (code) => resolve(code !== 0 ? `Exit ${code}:\n${out}` : out || "(no output)"));
+    proc.on("error", (e) => resolve(`Error: ${e.message}`));
+  });
+}
 
-function credential() {
-  return new ClientSecretCredential(TENANT_ID, CLIENT_ID, CLIENT_SECRET);
+async function setup() {
+  const tenantId = process.env.COSI_SECRET_AZURE_TENANT_ID;
+  const clientId = process.env.COSI_SECRET_AZURE_CLIENT_ID;
+  const clientSecret = process.env.COSI_SECRET_AZURE_CLIENT_SECRET;
+  const subscriptionId = process.env.COSI_SECRET_AZURE_SUBSCRIPTION_ID;
+
+  if (!tenantId || !clientId || !clientSecret) {
+    console.log("[azure] No credentials set — configure azure/* secrets to enable");
+    return;
+  }
+
+  console.log("[azure] Authenticating service principal...");
+  const loginOut = await run("az", [
+    "login", "--service-principal",
+    "-u", clientId, "-p", clientSecret, "--tenant", tenantId,
+  ]);
+  console.log("[azure] Login:", loginOut.split("\n")[0]);
+
+  if (subscriptionId) {
+    await run("az", ["account", "set", "--subscription", subscriptionId]);
+    console.log("[azure] Subscription set:", subscriptionId);
+  }
 }
 
 function buildServer() {
   const server = new McpServer({ name: "azure", version: "1.0.0" });
 
   server.tool(
-    "list_resource_groups",
-    "List all resource groups in the subscription",
-    {},
-    async () => {
-      const client = new ResourceManagementClient(credential(), SUBSCRIPTION_ID);
-      const groups = [];
-      for await (const rg of client.resourceGroups.list()) {
-        groups.push({ name: rg.name, location: rg.location, tags: rg.tags });
-      }
-      return { content: [{ type: "text", text: JSON.stringify(groups, null, 2) }] };
-    }
-  );
-
-  server.tool(
-    "list_virtual_machines",
-    "List virtual machines, optionally filtered by resource group",
-    { resourceGroup: z.string().optional() },
-    async ({ resourceGroup }) => {
-      const client = new ComputeManagementClient(credential(), SUBSCRIPTION_ID);
-      const vms = [];
-      const iter = resourceGroup
-        ? client.virtualMachines.list(resourceGroup)
-        : client.virtualMachines.listAll();
-      for await (const vm of iter) {
-        vms.push({
-          name: vm.name,
-          location: vm.location,
-          size: vm.hardwareProfile?.vmSize,
-          os: vm.storageProfile?.osDisk?.osType,
-          provisioningState: vm.provisioningState,
-          resourceGroup: vm.id?.split("/")[4],
-        });
-      }
-      return { content: [{ type: "text", text: JSON.stringify(vms, null, 2) }] };
-    }
-  );
-
-  server.tool(
-    "get_vm_instance_view",
-    "Get detailed status and instance view for a virtual machine",
-    { resourceGroup: z.string(), vmName: z.string() },
-    async ({ resourceGroup, vmName }) => {
-      const client = new ComputeManagementClient(credential(), SUBSCRIPTION_ID);
-      const view = await client.virtualMachines.instanceView(resourceGroup, vmName);
-      const statuses = view.statuses?.map((s) => ({ code: s.code, displayStatus: s.displayStatus }));
-      return { content: [{ type: "text", text: JSON.stringify({ vmName, statuses }, null, 2) }] };
-    }
-  );
-
-  server.tool(
-    "manage_virtual_machine",
-    "Start, stop, deallocate, or restart a virtual machine",
-    {
-      resourceGroup: z.string(),
-      vmName: z.string(),
-      action: z.enum(["start", "stop", "deallocate", "restart"]),
-    },
-    async ({ resourceGroup, vmName, action }) => {
-      const client = new ComputeManagementClient(credential(), SUBSCRIPTION_ID);
-      if (action === "start") await client.virtualMachines.beginStartAndWait(resourceGroup, vmName);
-      else if (action === "stop") await client.virtualMachines.beginPowerOffAndWait(resourceGroup, vmName);
-      else if (action === "deallocate") await client.virtualMachines.beginDeallocateAndWait(resourceGroup, vmName);
-      else await client.virtualMachines.beginRestartAndWait(resourceGroup, vmName);
-      return { content: [{ type: "text", text: JSON.stringify({ vmName, action, result: "success" }) }] };
-    }
-  );
-
-  server.tool(
-    "list_aks_clusters",
-    "List AKS Kubernetes clusters, optionally filtered by resource group",
-    { resourceGroup: z.string().optional() },
-    async ({ resourceGroup }) => {
-      const client = new ContainerServiceClient(credential(), SUBSCRIPTION_ID);
-      const clusters = [];
-      const iter = resourceGroup
-        ? client.managedClusters.listByResourceGroup(resourceGroup)
-        : client.managedClusters.list();
-      for await (const c of iter) {
-        clusters.push({
-          name: c.name,
-          location: c.location,
-          kubernetesVersion: c.kubernetesVersion,
-          provisioningState: c.provisioningState,
-          fqdn: c.fqdn,
-          resourceGroup: c.id?.split("/")[4],
-        });
-      }
-      return { content: [{ type: "text", text: JSON.stringify(clusters, null, 2) }] };
-    }
-  );
-
-  server.tool(
-    "describe_aks_cluster",
-    "Get details of an AKS cluster including Kubernetes version, node pools, and FQDN",
-    { resourceGroup: z.string(), clusterName: z.string() },
-    async ({ resourceGroup, clusterName }) => {
-      const client = new ContainerServiceClient(credential(), SUBSCRIPTION_ID);
-      const cluster = await client.managedClusters.get(resourceGroup, clusterName);
-      const nodePools = cluster.agentPoolProfiles?.map((p) => ({
-        name: p.name,
-        count: p.count,
-        vmSize: p.vmSize,
-        osType: p.osType,
-        mode: p.mode,
-      }));
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            name: cluster.name,
-            kubernetesVersion: cluster.kubernetesVersion,
-            provisioningState: cluster.provisioningState,
-            fqdn: cluster.fqdn,
-            nodePools,
-          }, null, 2),
-        }],
-      };
+    "az",
+    "Run any Azure CLI command. Pass all arguments after 'az' as an array.",
+    { args: z.array(z.string()) },
+    async ({ args }) => {
+      const out = await run("az", args);
+      return { content: [{ type: "text", text: out }] };
     }
   );
 
@@ -154,4 +70,4 @@ app.post("/mcp", async (req, res) => {
   await transport.handleRequest(req, res, req.body);
 });
 
-app.listen(3000, () => console.log("[azure] listening on :3000"));
+setup().then(() => app.listen(3000, () => console.log("[azure] listening on :3000")));

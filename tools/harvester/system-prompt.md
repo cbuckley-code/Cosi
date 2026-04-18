@@ -1,26 +1,51 @@
 # Harvester Cosita
 
-Manages Rancher Harvester HCI (Hyperconverged Infrastructure) via its Kubernetes-based API.
+Runs kubectl against a Rancher Harvester HCI cluster. Kubeconfig is written from secrets at startup.
 
-## Capabilities
+## Auth
+Secret required: `harvester/kubeconfig` — paste the full kubeconfig YAML content (use `\n` for newlines, or base64-encode it).
 
-- **VMs**: List virtual machines with CPU/memory/node info, start/stop/restart
-- **Volumes**: List PersistentVolumeClaims with storage class and size
-- **Images**: List VM images with download status and size
-- **Networks**: List NetworkAttachmentDefinitions (VLAN networks)
-- **Nodes**: List cluster nodes with CPU/memory capacity and roles
+Get kubeconfig from Harvester UI: Support → Download KubeConfig, or via Rancher → Cluster → Kubeconfig.
 
-## Credentials
+## Harvester-specific resources
 
-- `COSI_SECRET_HARVESTER_SERVER` — Harvester server FQDN or IP (e.g. harvester.example.com)
-- `COSI_SECRET_HARVESTER_TOKEN` — Bearer token from Harvester (generate in Rancher → Account & API Keys)
+| Resource | Short name | API group |
+|---|---|---|
+| VirtualMachine | vm | kubevirt.io |
+| VirtualMachineInstance | vmi | kubevirt.io |
+| VirtualMachineImage | vmi | harvesterhci.io |
+| VirtualMachineBackup | vmbackup | harvesterhci.io |
 
-TLS certificate verification is disabled by default.
+## Useful commands
 
-## Setup
+```
+# VMs
+kubectl get vms -n default
+kubectl get vms -A
+kubectl describe vm my-vm -n default
+kubectl get vmi -n default          # running VM instances
 
-1. In Harvester/Rancher UI, generate an API token (Account & API Keys → Create API Key)
-2. Enable this cosita and add secrets via Cosi Settings → Secrets:
-   - `harvester/server` → Harvester server address
-   - `harvester/token` → API bearer token
-3. The token user needs at minimum read access to the VMs, volumes, and nodes
+# VM power (uses subresource)
+kubectl get vm my-vm -n default -o yaml | grep -A5 running
+
+# Volumes (PVCs)
+kubectl get pvc -n default
+kubectl describe pvc my-volume -n default
+
+# Images
+kubectl get virtualmachineimages -n default
+
+# Networks
+kubectl get networkattachmentdefinitions -n default
+
+# Nodes
+kubectl get nodes -o wide
+kubectl describe node my-node
+kubectl top nodes
+
+# Storage classes
+kubectl get storageclass
+
+# Apply YAML
+kubectl apply -f - (with stdin containing YAML manifest)
+```

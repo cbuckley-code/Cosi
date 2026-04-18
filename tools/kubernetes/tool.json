@@ -1,0 +1,29 @@
+{
+  "name": "kubernetes",
+  "description": "Kubernetes cluster management via kubectl. Ask Claude to inspect and manage pods, deployments, services, namespaces, configmaps, secrets, ingresses, and any other Kubernetes resource.",
+  "version": "1.0.0",
+  "enabled": false,
+  "tools": [
+    {
+      "name": "kubectl",
+      "description": "Run any kubectl command. Pass all arguments after 'kubectl' as an array. Supports stdin for apply -f -.\n\nExamples:\n- List pods: [\"get\", \"pods\", \"-A\"]\n- Describe deployment: [\"describe\", \"deployment\", \"my-app\", \"-n\", \"prod\"]\n- Tail logs: [\"logs\", \"pod-name\", \"--tail=50\", \"-f\"]\n- Scale: [\"scale\", \"deployment\", \"my-app\", \"--replicas=3\"]\n- Apply YAML: [\"apply\", \"-f\", \"-\"] with stdin containing YAML\n- Get events: [\"get\", \"events\", \"--sort-by=.lastTimestamp\", \"-A\"]\n- Port-forward: not supported (use exec instead)\n- Exec into pod: [\"exec\", \"-it\", \"pod-name\", \"--\", \"sh\"]",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "args": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "kubectl arguments, e.g. [\"get\", \"pods\", \"-n\", \"default\", \"-o\", \"wide\"]"
+          },
+          "stdin": {
+            "type": "string",
+            "description": "Optional YAML/JSON to pipe to the command (for kubectl apply -f -)"
+          }
+        },
+        "required": ["args"]
+      }
+    }
+  ],
+  "secrets": ["kubernetes/kubeconfig"],
+  "port": 3000
+}

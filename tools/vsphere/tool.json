@@ -1,65 +1,22 @@
 {
   "name": "vsphere",
-  "description": "VMware vSphere infrastructure management — VMs, hosts, datastores, and resource pools via the vSphere REST API",
+  "description": "VMware vSphere infrastructure management via govc (govmomi CLI). Ask Claude to run any govc command — VMs, hosts, datastores, networks, snapshots, and more.",
   "version": "1.0.0",
   "enabled": false,
   "tools": [
     {
-      "name": "list_vms",
-      "description": "List all virtual machines in vSphere, optionally filtered by power state or name",
+      "name": "govc",
+      "description": "Run any govc command against vSphere. Pass all arguments after 'govc' as an array.\n\nExamples:\n- List VMs: [\"ls\", \"/datacenter/vm\"]\n- VM details: [\"vm.info\", \"my-vm\"]\n- Power on VM: [\"vm.power\", \"-on\", \"my-vm\"]\n- Power off VM: [\"vm.power\", \"-off\", \"my-vm\"]\n- List hosts: [\"ls\", \"/datacenter/host\"]\n- List datastores: [\"datastore.info\", \"*\"]\n- VM snapshot: [\"snapshot.create\", \"-vm\", \"my-vm\", \"snap1\"]\n- Clone VM: [\"vm.clone\", \"-vm\", \"template-vm\", \"-on=false\", \"new-vm\"]",
       "inputSchema": {
         "type": "object",
         "properties": {
-          "powerState": { "type": "string", "enum": ["POWERED_ON", "POWERED_OFF", "SUSPENDED"] },
-          "nameFilter": { "type": "string", "description": "Filter VMs by name (substring match)" }
-        }
-      }
-    },
-    {
-      "name": "get_vm",
-      "description": "Get detailed information about a specific virtual machine",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "vmId": { "type": "string", "description": "VM identifier (e.g. vm-123)" }
+          "args": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "govc arguments, e.g. [\"ls\", \"/datacenter/vm\"] or [\"vm.info\", \"my-vm\"]"
+          }
         },
-        "required": ["vmId"]
-      }
-    },
-    {
-      "name": "manage_vm_power",
-      "description": "Power on, power off, suspend, or reset a virtual machine",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "vmId": { "type": "string" },
-          "action": { "type": "string", "enum": ["start", "stop", "suspend", "reset"] }
-        },
-        "required": ["vmId", "action"]
-      }
-    },
-    {
-      "name": "list_hosts",
-      "description": "List all ESXi hosts in the vSphere environment",
-      "inputSchema": {
-        "type": "object",
-        "properties": {}
-      }
-    },
-    {
-      "name": "list_datastores",
-      "description": "List all datastores with capacity and free space information",
-      "inputSchema": {
-        "type": "object",
-        "properties": {}
-      }
-    },
-    {
-      "name": "list_resource_pools",
-      "description": "List resource pools in the vSphere inventory",
-      "inputSchema": {
-        "type": "object",
-        "properties": {}
+        "required": ["args"]
       }
     }
   ],

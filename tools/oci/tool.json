@@ -1,59 +1,22 @@
 {
   "name": "oci",
-  "description": "Oracle Cloud Infrastructure management — Compute, OKE Kubernetes, Object Storage, and Compartments",
+  "description": "Oracle Cloud Infrastructure management via the OCI CLI. Ask Claude to run any oci command — Compute, OKE, Object Storage, Networking, IAM, and more.",
   "version": "1.0.0",
   "enabled": false,
   "tools": [
     {
-      "name": "list_compartments",
-      "description": "List all compartments in the tenancy",
-      "inputSchema": {
-        "type": "object",
-        "properties": {}
-      }
-    },
-    {
-      "name": "list_instances",
-      "description": "List compute instances in a compartment",
+      "name": "oci",
+      "description": "Run any OCI CLI command. Pass all arguments after 'oci' as an array.\n\nExamples:\n- List compute instances: [\"compute\", \"instance\", \"list\", \"--compartment-id\", \"ocid1...\"]\n- List compartments: [\"iam\", \"compartment\", \"list\", \"--compartment-id\", \"<tenancy-ocid>\"]\n- OKE clusters: [\"ce\", \"cluster\", \"list\", \"--compartment-id\", \"ocid1...\"]\n- Object Storage buckets: [\"os\", \"bucket\", \"list\", \"--compartment-id\", \"ocid1...\"]\n- VCNs: [\"network\", \"vcn\", \"list\", \"--compartment-id\", \"ocid1...\"]\n- Instance details: [\"compute\", \"instance\", \"get\", \"--instance-id\", \"ocid1...\"]",
       "inputSchema": {
         "type": "object",
         "properties": {
-          "compartmentId": { "type": "string", "description": "Compartment OCID (defaults to tenancy root)" },
-          "availabilityDomain": { "type": "string" }
-        }
-      }
-    },
-    {
-      "name": "manage_instance",
-      "description": "Start, stop, or reset a compute instance",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "instanceId": { "type": "string" },
-          "action": { "type": "string", "enum": ["start", "stop", "reset", "softstop"] }
+          "args": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "OCI CLI arguments, e.g. [\"compute\", \"instance\", \"list\", \"--compartment-id\", \"ocid1...\"]"
+          }
         },
-        "required": ["instanceId", "action"]
-      }
-    },
-    {
-      "name": "list_oke_clusters",
-      "description": "List OKE (Kubernetes Engine) clusters in a compartment",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "compartmentId": { "type": "string" }
-        }
-      }
-    },
-    {
-      "name": "list_buckets",
-      "description": "List Object Storage buckets in a compartment",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "compartmentId": { "type": "string" },
-          "namespaceName": { "type": "string", "description": "Object Storage namespace (leave empty to auto-detect)" }
-        }
+        "required": ["args"]
       }
     }
   ],

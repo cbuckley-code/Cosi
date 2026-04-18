@@ -1,71 +1,29 @@
 {
   "name": "harvester",
-  "description": "Rancher Harvester HCI management — Virtual Machines, Volumes, Images, Networks, and Nodes",
+  "description": "Rancher Harvester HCI management via kubectl. Ask Claude to manage VMs, volumes, images, and networks in your Harvester cluster using standard kubectl commands with Harvester CRDs.",
   "version": "1.0.0",
   "enabled": false,
   "tools": [
     {
-      "name": "list_vms",
-      "description": "List virtual machines in Harvester, optionally filtered by namespace",
+      "name": "kubectl",
+      "description": "Run any kubectl command against your Harvester cluster. Pass all arguments after 'kubectl' as an array. Supports stdin for apply -f -.\n\nHarvester-specific resources: VirtualMachine, VirtualMachineImage, VirtualMachineInstance\n\nExamples:\n- List VMs: [\"get\", \"vms\", \"-n\", \"default\"]\n- VM details: [\"describe\", \"vm\", \"my-vm\", \"-n\", \"default\"]\n- Start VM: [\"annotate\", \"vm\", \"my-vm\", \"harvesterhci.io/startVM=true\"]\n- List volumes: [\"get\", \"pvc\", \"-n\", \"default\"]\n- List images: [\"get\", \"virtualmachineimages\", \"-n\", \"default\"]\n- Node status: [\"get\", \"nodes\", \"-o\", \"wide\"]",
       "inputSchema": {
         "type": "object",
         "properties": {
-          "namespace": { "type": "string", "description": "Kubernetes namespace (default: default)" }
-        }
-      }
-    },
-    {
-      "name": "manage_vm",
-      "description": "Start, stop, or restart a Harvester virtual machine",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "namespace": { "type": "string" },
-          "name": { "type": "string" },
-          "action": { "type": "string", "enum": ["start", "stop", "restart"] }
+          "args": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "kubectl arguments, e.g. [\"get\", \"vms\", \"-n\", \"default\"]"
+          },
+          "stdin": {
+            "type": "string",
+            "description": "Optional YAML/JSON to pipe to the command (for kubectl apply -f -)"
+          }
         },
-        "required": ["name", "action"]
-      }
-    },
-    {
-      "name": "list_volumes",
-      "description": "List PersistentVolumeClaims (volumes) in Harvester",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "namespace": { "type": "string" }
-        }
-      }
-    },
-    {
-      "name": "list_images",
-      "description": "List available VM images in Harvester",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "namespace": { "type": "string" }
-        }
-      }
-    },
-    {
-      "name": "list_networks",
-      "description": "List VM networks (NetworkAttachmentDefinitions) in Harvester",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "namespace": { "type": "string" }
-        }
-      }
-    },
-    {
-      "name": "get_cluster_nodes",
-      "description": "List Harvester cluster nodes with CPU, memory, and status information",
-      "inputSchema": {
-        "type": "object",
-        "properties": {}
+        "required": ["args"]
       }
     }
   ],
-  "secrets": ["harvester/server", "harvester/token"],
+  "secrets": ["harvester/kubeconfig"],
   "port": 3000
 }

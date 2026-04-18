@@ -3,13 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
 import { spawn } from "child_process";
-
-const GOVC_ENV = {
-  GOVC_URL: process.env.COSI_SECRET_VSPHERE_SERVER || "",
-  GOVC_USERNAME: process.env.COSI_SECRET_VSPHERE_USERNAME || "",
-  GOVC_PASSWORD: process.env.COSI_SECRET_VSPHERE_PASSWORD || "",
-  GOVC_INSECURE: "true",
-};
+import { writeFile, mkdir } from "fs/promises";
 
 function run(binary, args, { env = {}, stdin } = {}) {
   return new Promise((resolve) => {
@@ -26,15 +20,28 @@ function run(binary, args, { env = {}, stdin } = {}) {
   });
 }
 
+async function setup() {
+  const kubeconfig = (process.env.COSI_SECRET_KUBERNETES_KUBECONFIG || "").replace(/\\n/g, "\n");
+
+  if (!kubeconfig) {
+    console.log("[kubernetes] No kubeconfig set — configure kubernetes/kubeconfig secret to enable");
+    return;
+  }
+
+  await mkdir("/root/.kube", { recursive: true });
+  await writeFile("/root/.kube/config", kubeconfig, { mode: 0o600 });
+  console.log("[kubernetes] Kubeconfig written");
+}
+
 function buildServer() {
-  const server = new McpServer({ name: "vsphere", version: "1.0.0" });
+  const server = new McpServer({ name: "kubernetes", version: "1.0.0" });
 
   server.tool(
-    "govc",
-    "Run any govc command against vSphere. Pass all arguments after 'govc' as an array.",
-    { args: z.array(z.string()) },
-    async ({ args }) => {
-      const out = await run("govc", args, { env: GOVC_ENV });
+    "kubectl",
+    "Run any kubectl command. Pass all arguments after 'kubectl' as an array. Use stdin for apply -f -.",
+    { args: z.array(z.string()), stdin: z.string().optional() },
+    async ({ args, stdin }) => {
+      const out = await run("kubectl", args, { stdin });
       return { content: [{ type: "text", text: out }] };
     }
   );
@@ -45,7 +52,7 @@ function buildServer() {
 const app = express();
 app.use(express.json());
 
-app.get("/health", (_req, res) => res.json({ status: "ok", tool: "vsphere" }));
+app.get("/health", (_req, res) => res.json({ status: "ok", tool: "kubernetes" }));
 app.get("/mcp", (_req, res) => res.status(405).end());
 app.post("/mcp", async (req, res) => {
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
@@ -53,4 +60,4 @@ app.post("/mcp", async (req, res) => {
   await transport.handleRequest(req, res, req.body);
 });
 
-app.listen(3000, () => console.log("[vsphere] listening on :3000"));
+setup().then(() => app.listen(3000, () => console.log("[kubernetes] listening on :3000")));

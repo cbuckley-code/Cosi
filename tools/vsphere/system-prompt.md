@@ -1,25 +1,50 @@
 # vSphere Cosita
 
-Manages VMware vSphere infrastructure via the vSphere REST API (vCenter 7.0+).
+Runs govc (govmomi) commands against vSphere. Credentials are passed as environment variables per command.
 
-## Capabilities
+## Auth
+Secrets required: `vsphere/server`, `vsphere/username`, `vsphere/password`
 
-- **VMs**: List with power state filter, get detailed VM info, power on/off/suspend/reset
-- **Hosts**: List ESXi hosts with connection and power state
-- **Datastores**: List with capacity and free space in GB
-- **Resource Pools**: List resource pools in the inventory
+TLS verification is disabled (`GOVC_INSECURE=true`) — typical for vSphere environments with self-signed certs.
 
-## Credentials
+## Useful commands
 
-- `COSI_SECRET_VSPHERE_SERVER` — vCenter FQDN or IP (e.g. vcenter.example.com)
-- `COSI_SECRET_VSPHERE_USERNAME` — vCenter username (e.g. administrator@vsphere.local)
-- `COSI_SECRET_VSPHERE_PASSWORD` — vCenter password
+```
+# Browse inventory
+govc ls /
+govc ls /datacenter/vm
+govc ls /datacenter/host
+govc ls /datacenter/datastore
 
-TLS certificate verification is disabled by default (self-signed certs are common in vSphere environments).
+# VMs
+govc vm.info my-vm
+govc vm.info /datacenter/vm/my-vm
+govc find / -type m                     # list all VMs
+govc find / -type m -runtime.powerState poweredOn
 
-## Setup
+# Power management
+govc vm.power -on my-vm
+govc vm.power -off my-vm
+govc vm.power -suspend my-vm
+govc vm.power -reset my-vm
 
-1. Ensure the vCenter REST API is accessible from the Cosi host on port 443
-2. Enable this cosita and add secrets via Cosi Settings → Secrets:
-   - `vsphere/server`, `vsphere/username`, `vsphere/password`
-3. The user account needs at minimum read privileges on the vSphere inventory
+# Snapshots
+govc snapshot.tree -vm my-vm
+govc snapshot.create -vm my-vm snap-name
+govc snapshot.revert -vm my-vm snap-name
+govc snapshot.remove -vm my-vm snap-name
+
+# Clone / create
+govc vm.clone -vm template-vm -on=false -folder=/datacenter/vm new-vm
+govc vm.destroy old-vm
+
+# Datastores
+govc datastore.info *
+govc datastore.ls my-datastore
+
+# Hosts
+govc host.info *
+
+# Events
+govc events -n 20
+```

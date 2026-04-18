@@ -4,7 +4,7 @@ import { chatStream } from "./bedrock-client.js";
 import { getAllTools, getToolList, loadRegistry } from "./registry.js";
 import { generateTool, writeToolFiles, toolExists } from "./tool-generator.js";
 import { validateGeneratedTool } from "./tool-validator.js";
-import { commitAndPush } from "./git-client.js";
+import { commitAndPush, isGitMode } from "./git-client.js";
 import { appendMessages, deleteSession } from "./session-store.js";
 import { maybeCompact, buildContextMessages } from "./session-compaction.js";
 import { buildUserContent } from "./attachments.js";
@@ -177,7 +177,9 @@ router.post("/chat", async (req, res) => {
 
           await writeToolFiles(actualToolName, generated.files);
 
-          sendEvent("status", { message: "Committing to git…" });
+          if (isGitMode()) {
+            sendEvent("status", { message: "Committing to git…" });
+          }
           await commitAndPush(
             actualToolName,
             `feat: add tool ${actualToolName} via Cosi`

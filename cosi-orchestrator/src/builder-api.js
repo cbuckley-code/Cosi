@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { chatStream } from "./bedrock-client.js";
 import { generateTool, writeToolFiles, toolExists } from "./tool-generator.js";
 import { validateGeneratedTool } from "./tool-validator.js";
-import { commitAndPush } from "./git-client.js";
+import { commitAndPush, isGitMode } from "./git-client.js";
 import { getToolList, loadRegistry } from "./registry.js";
 import { appendMessages, deleteSession } from "./session-store.js";
 import { maybeCompact, buildContextMessages } from "./session-compaction.js";
@@ -187,8 +187,9 @@ router.post("/builder/chat", async (req, res) => {
 
         await writeToolFiles(actualToolName, generated.files);
 
-        sendEvent("status", { message: "Committing to git..." });
-
+        if (isGitMode()) {
+          sendEvent("status", { message: "Committing to git..." });
+        }
         await commitAndPush(
           actualToolName,
           `feat: add tool ${actualToolName} via Cosi builder`
@@ -254,6 +255,7 @@ router.get("/settings", async (req, res) => {
     const raw = await fs.readFile(SETTINGS_PATH, "utf8").catch(() => "{}");
     const settings = JSON.parse(raw);
     res.json({
+      storageMode: settings.storageMode || process.env.STORAGE_MODE || "git",
       gitRepoUrl: settings.gitRepoUrl || process.env.GIT_REPO_URL || "",
       gitBranch: settings.gitBranch || process.env.GIT_BRANCH || "main",
       awsRegion: settings.awsRegion || process.env.AWS_REGION || "us-west-2",
@@ -276,6 +278,7 @@ router.post("/settings", async (req, res) => {
     const settings = req.body;
     await fs.writeFile(SETTINGS_PATH, JSON.stringify(settings, null, 2), "utf8");
 
+    if (settings.storageMode) process.env.STORAGE_MODE = settings.storageMode;
     if (settings.awsRegion) process.env.AWS_REGION = settings.awsRegion;
     if (settings.bedrockModelId) process.env.BEDROCK_MODEL_ID = settings.bedrockModelId;
     if (settings.gitRepoUrl) process.env.GIT_REPO_URL = settings.gitRepoUrl;

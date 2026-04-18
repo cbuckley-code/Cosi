@@ -16,7 +16,16 @@ export async function configureGit() {
   }
 }
 
+export function isGitMode() {
+  return (process.env.STORAGE_MODE || "git") === "git";
+}
+
 export async function commitAndPush(toolName, message) {
+  if (!isGitMode()) {
+    console.log("[git] Filesystem mode — skipping commit");
+    return;
+  }
+
   await configureGit();
   const toolPath = `tools/${toolName}`;
 

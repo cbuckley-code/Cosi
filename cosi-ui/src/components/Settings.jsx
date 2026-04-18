@@ -100,23 +100,45 @@ export default function Settings() {
       <SpaceBetween size="l">
         <Header variant="h1">Settings</Header>
 
-        <Container header={<Header variant="h2">Git Configuration</Header>}>
+        <Container header={<Header variant="h2">Storage</Header>}>
           <SpaceBetween size="m">
-            <FormField label="Git Repository URL" description="The repository Cosi commits generated tools to">
-              <Input
-                value={localSettings.gitRepoUrl}
-                onChange={({ detail }) => update("gitRepoUrl", detail.value)}
-                placeholder="https://github.com/your-org/cosi-tools.git"
+            <FormField
+              label="Storage mode"
+              description="Git mode commits generated tools to a repository so they are versioned and portable. Filesystem mode writes tools directly to disk — simpler, no git setup required."
+            >
+              <Select
+                selectedOption={
+                  localSettings.storageMode === "filesystem"
+                    ? { label: "Filesystem", value: "filesystem" }
+                    : { label: "Git", value: "git" }
+                }
+                onChange={({ detail }) => update("storageMode", detail.selectedOption.value)}
+                options={[
+                  { label: "Git", value: "git" },
+                  { label: "Filesystem", value: "filesystem" },
+                ]}
               />
             </FormField>
 
-            <FormField label="Git Branch">
-              <Input
-                value={localSettings.gitBranch}
-                onChange={({ detail }) => update("gitBranch", detail.value)}
-                placeholder="main"
-              />
-            </FormField>
+            {localSettings.storageMode !== "filesystem" && (
+              <>
+                <FormField label="Git Repository URL" description="The repository Cosi commits generated tools to">
+                  <Input
+                    value={localSettings.gitRepoUrl}
+                    onChange={({ detail }) => update("gitRepoUrl", detail.value)}
+                    placeholder="https://github.com/your-org/cosi-tools.git"
+                  />
+                </FormField>
+
+                <FormField label="Git Branch">
+                  <Input
+                    value={localSettings.gitBranch}
+                    onChange={({ detail }) => update("gitBranch", detail.value)}
+                    placeholder="main"
+                  />
+                </FormField>
+              </>
+            )}
           </SpaceBetween>
         </Container>
 

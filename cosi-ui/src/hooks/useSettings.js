@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 
 const DEFAULT_SETTINGS = {
+  storageMode: "git",
   gitRepoUrl: "",
   gitBranch: "main",
   awsRegion: "us-west-2",
   awsGovCloud: false,
-  bedrockModelId: "anthropic.claude-sonnet-4-20250514-v1:0",
-  awsSecretPrefix: "cosi/",
+  bedrockModelId: "us.anthropic.claude-sonnet-4-6",
 };
 
 export function useSettings() {

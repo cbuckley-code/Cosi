@@ -1,0 +1,82 @@
+{
+  "name": "gcp",
+  "description": "Google Cloud Platform infrastructure management — Compute Engine, GKE, and Cloud Storage",
+  "version": "1.0.0",
+  "enabled": false,
+  "tools": [
+    {
+      "name": "list_compute_instances",
+      "description": "List Compute Engine VM instances across zones in a project",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": { "type": "string", "description": "GCP project ID (defaults to configured project)" },
+          "zone": { "type": "string", "description": "Zone to list (e.g. us-central1-a). Omit to list all zones." }
+        }
+      }
+    },
+    {
+      "name": "manage_compute_instance",
+      "description": "Start, stop, or reset a Compute Engine VM instance",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": { "type": "string" },
+          "zone": { "type": "string" },
+          "instance": { "type": "string" },
+          "action": { "type": "string", "enum": ["start", "stop", "reset"] }
+        },
+        "required": ["zone", "instance", "action"]
+      }
+    },
+    {
+      "name": "get_compute_instance",
+      "description": "Get details of a specific Compute Engine VM instance",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": { "type": "string" },
+          "zone": { "type": "string" },
+          "instance": { "type": "string" }
+        },
+        "required": ["zone", "instance"]
+      }
+    },
+    {
+      "name": "list_gke_clusters",
+      "description": "List GKE Kubernetes clusters in a project",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": { "type": "string" },
+          "location": { "type": "string", "description": "Region or zone (e.g. us-central1). Use '-' for all locations." }
+        }
+      }
+    },
+    {
+      "name": "describe_gke_cluster",
+      "description": "Get details of a GKE cluster including version, node pools, and status",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": { "type": "string" },
+          "location": { "type": "string" },
+          "clusterName": { "type": "string" }
+        },
+        "required": ["location", "clusterName"]
+      }
+    },
+    {
+      "name": "list_storage_buckets",
+      "description": "List Cloud Storage buckets in a project",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": { "type": "string" }
+        }
+      }
+    }
+  ],
+  "secrets": ["gcp/project-id", "gcp/credentials-json"],
+  "port": 3000
+}

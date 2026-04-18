@@ -2,8 +2,10 @@ import express from "express";
 import { v4 as uuidv4 } from "uuid";
 import { chatStream } from "./bedrock-client.js";
 import { generateTool, writeToolFiles, toolExists } from "./tool-generator.js";
-import { commitAndPush } from "./git-client.js";
-import { getToolList, loadRegistry } from "./registry.js";
+import { validateGeneratedTool } from "./tool-validator.js";
+import { commitAndPush, isGitMode } from "./git-client.js";
+import { getToolList, loadRegistry, getLibrary } from "./registry.js";
+import { setSecret, deleteSecret, listSecretNames } from "./secrets.js";
 import { appendMessages, deleteSession } from "./session-store.js";
 import { maybeCompact, buildContextMessages } from "./session-compaction.js";
 import { buildUserContent } from "./attachments.js";
@@ -13,6 +15,7 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SETTINGS_PATH = path.join(__dirname, "../../settings.json");
+const TOOLS_DIR = process.env.TOOLS_DIR || path.join(__dirname, "../../tools");
 
 const BUILDER_SYSTEM_PROMPT = `You are Cosi's builder assistant. Your job is to help users design and create MCP tool servers.
 
@@ -218,6 +221,7 @@ router.get("/settings", async (req, res) => {
     const raw = await fs.readFile(SETTINGS_PATH, "utf8").catch(() => "{}");
     const settings = JSON.parse(raw);
     res.json({
+      storageMode: settings.storageMode || process.env.STORAGE_MODE || "filesystem",
       gitRepoUrl: settings.gitRepoUrl || process.env.GIT_REPO_URL || "",
       gitBranch: settings.gitBranch || process.env.GIT_BRANCH || "main",
       awsRegion: settings.awsRegion || process.env.AWS_REGION || "us-west-2",
@@ -225,9 +229,7 @@ router.get("/settings", async (req, res) => {
       bedrockModelId:
         settings.bedrockModelId ||
         process.env.BEDROCK_MODEL_ID ||
-        "anthropic.claude-sonnet-4-20250514-v1:0",
-      awsSecretPrefix:
-        settings.awsSecretPrefix || process.env.AWS_SECRET_PREFIX || "cosi/",
+        "us.anthropic.claude-sonnet-4-6",
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -242,21 +244,105 @@ router.post("/settings", async (req, res) => {
     const settings = req.body;
     await fs.writeFile(SETTINGS_PATH, JSON.stringify(settings, null, 2), "utf8");
 
+    if (settings.storageMode) process.env.STORAGE_MODE = settings.storageMode;
     if (settings.awsRegion) process.env.AWS_REGION = settings.awsRegion;
     if (settings.bedrockModelId) process.env.BEDROCK_MODEL_ID = settings.bedrockModelId;
-    if (settings.awsSecretPrefix) process.env.AWS_SECRET_PREFIX = settings.awsSecretPrefix;
     if (settings.gitRepoUrl) process.env.GIT_REPO_URL = settings.gitRepoUrl;
     if (settings.gitBranch) process.env.GIT_BRANCH = settings.gitBranch;
 
     const { reinitialize: reinitBedrock } = await import("./bedrock-client.js");
-    const { reinitialize: reinitSecrets } = await import("./secrets.js");
     reinitBedrock();
-    reinitSecrets();
 
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
+/**
+ * GET /api/secrets — list secret names (values never returned)
+ */
+router.get("/secrets", async (req, res) => {
+  try {
+    const names = await listSecretNames();
+    res.json({ secrets: names });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/secrets — add or update a secret
+ * Body: { name: "COSI_SECRET_API_KEY", value: "..." }
+ */
+router.post("/secrets", async (req, res) => {
+  const { name, value } = req.body;
+  if (!name || value === undefined) {
+    return res.status(400).json({ error: "name and value are required" });
+  }
+  try {
+    await setSecret(name, value);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * DELETE /api/secrets/:name — remove a secret
+ */
+router.delete("/secrets/:name", async (req, res) => {
+  try {
+    await deleteSecret(req.params.name);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /api/library — all tools including disabled library cositas
+ */
+router.get("/library", async (req, res) => {
+  try {
+    const tools = await getLibrary();
+    res.json({ tools });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/library/:name/enable — set enabled: true in tool.json
+ */
+router.post("/library/:name/enable", async (req, res) => {
+  try {
+    const manifestPath = path.join(TOOLS_DIR, req.params.name, "tool.json");
+    const raw = await fs.readFile(manifestPath, "utf8");
+    const manifest = JSON.parse(raw);
+    manifest.enabled = true;
+    await fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2), "utf8");
+    res.json({ success: true });
+  } catch (err) {
+    res.status(404).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/library/:name/disable — set enabled: false in tool.json
+ */
+router.post("/library/:name/disable", async (req, res) => {
+  try {
+    const manifestPath = path.join(TOOLS_DIR, req.params.name, "tool.json");
+    const raw = await fs.readFile(manifestPath, "utf8");
+    const manifest = JSON.parse(raw);
+    manifest.enabled = false;
+    await fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2), "utf8");
+    res.json({ success: true });
+  } catch (err) {
+    res.status(404).json({ error: err.message });
+  }
+});
+
 
 export default router;

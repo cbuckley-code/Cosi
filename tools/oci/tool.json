@@ -1,0 +1,62 @@
+{
+  "name": "oci",
+  "description": "Oracle Cloud Infrastructure management — Compute, OKE Kubernetes, Object Storage, and Compartments",
+  "version": "1.0.0",
+  "enabled": false,
+  "tools": [
+    {
+      "name": "list_compartments",
+      "description": "List all compartments in the tenancy",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "list_instances",
+      "description": "List compute instances in a compartment",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "compartmentId": { "type": "string", "description": "Compartment OCID (defaults to tenancy root)" },
+          "availabilityDomain": { "type": "string" }
+        }
+      }
+    },
+    {
+      "name": "manage_instance",
+      "description": "Start, stop, or reset a compute instance",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "instanceId": { "type": "string" },
+          "action": { "type": "string", "enum": ["start", "stop", "reset", "softstop"] }
+        },
+        "required": ["instanceId", "action"]
+      }
+    },
+    {
+      "name": "list_oke_clusters",
+      "description": "List OKE (Kubernetes Engine) clusters in a compartment",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "compartmentId": { "type": "string" }
+        }
+      }
+    },
+    {
+      "name": "list_buckets",
+      "description": "List Object Storage buckets in a compartment",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "compartmentId": { "type": "string" },
+          "namespaceName": { "type": "string", "description": "Object Storage namespace (leave empty to auto-detect)" }
+        }
+      }
+    }
+  ],
+  "secrets": ["oci/tenancy-ocid", "oci/user-ocid", "oci/fingerprint", "oci/private-key", "oci/region"],
+  "port": 3000
+}

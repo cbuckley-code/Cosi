@@ -40,6 +40,11 @@ export async function loadRegistry() {
       continue;
     }
 
+    if (manifest.enabled === false) {
+      console.log(`[registry] Skipping disabled tool: ${toolDir}`);
+      continue;
+    }
+
     const serviceName = `tool-${toolDir}`;
     const tools = [];
 
@@ -111,6 +116,43 @@ export function getToolList() {
     healthy: t.healthy,
     serviceName: t.serviceName,
   }));
+}
+
+/**
+ * Return metadata for every tool in TOOLS_DIR, including disabled ones.
+ * Does not health-check — intended for the library/management UI.
+ */
+export async function getLibrary() {
+  let entries;
+  try {
+    entries = await fs.readdir(TOOLS_DIR, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
+  const library = [];
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const toolDir = entry.name;
+    const manifestPath = path.join(TOOLS_DIR, toolDir, "tool.json");
+    try {
+      const raw = await fs.readFile(manifestPath, "utf8");
+      const manifest = JSON.parse(raw);
+      library.push({
+        name: toolDir,
+        enabled: manifest.enabled !== false,
+        description: manifest.description || "",
+        tools: (manifest.tools || []).map((t) => ({
+          name: t.name,
+          description: t.description || "",
+        })),
+        secrets: manifest.secrets || [],
+      });
+    } catch {
+      continue;
+    }
+  }
+  return library;
 }
 
 /**

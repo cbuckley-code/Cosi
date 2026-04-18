@@ -1,0 +1,71 @@
+{
+  "name": "harvester",
+  "description": "Rancher Harvester HCI management — Virtual Machines, Volumes, Images, Networks, and Nodes",
+  "version": "1.0.0",
+  "enabled": false,
+  "tools": [
+    {
+      "name": "list_vms",
+      "description": "List virtual machines in Harvester, optionally filtered by namespace",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "namespace": { "type": "string", "description": "Kubernetes namespace (default: default)" }
+        }
+      }
+    },
+    {
+      "name": "manage_vm",
+      "description": "Start, stop, or restart a Harvester virtual machine",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "namespace": { "type": "string" },
+          "name": { "type": "string" },
+          "action": { "type": "string", "enum": ["start", "stop", "restart"] }
+        },
+        "required": ["name", "action"]
+      }
+    },
+    {
+      "name": "list_volumes",
+      "description": "List PersistentVolumeClaims (volumes) in Harvester",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "namespace": { "type": "string" }
+        }
+      }
+    },
+    {
+      "name": "list_images",
+      "description": "List available VM images in Harvester",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "namespace": { "type": "string" }
+        }
+      }
+    },
+    {
+      "name": "list_networks",
+      "description": "List VM networks (NetworkAttachmentDefinitions) in Harvester",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "namespace": { "type": "string" }
+        }
+      }
+    },
+    {
+      "name": "get_cluster_nodes",
+      "description": "List Harvester cluster nodes with CPU, memory, and status information",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  ],
+  "secrets": ["harvester/server", "harvester/token"],
+  "port": 3000
+}

@@ -1,0 +1,105 @@
+{
+  "name": "aws",
+  "description": "AWS cloud infrastructure management — EC2, S3, EKS, RDS, and CloudWatch metrics",
+  "version": "1.0.0",
+  "enabled": false,
+  "tools": [
+    {
+      "name": "list_ec2_instances",
+      "description": "List EC2 instances in a region, optionally filtered by state",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "region": { "type": "string", "description": "AWS region (defaults to configured region)" },
+          "state": { "type": "string", "enum": ["running", "stopped", "terminated", "pending", "stopping"], "description": "Filter by instance state" }
+        }
+      }
+    },
+    {
+      "name": "manage_ec2_instance",
+      "description": "Start, stop, reboot, or terminate an EC2 instance",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "instanceId": { "type": "string" },
+          "action": { "type": "string", "enum": ["start", "stop", "reboot", "terminate"] },
+          "region": { "type": "string" }
+        },
+        "required": ["instanceId", "action"]
+      }
+    },
+    {
+      "name": "list_s3_buckets",
+      "description": "List all S3 buckets in the account",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "s3_operations",
+      "description": "List objects, get object contents, put an object, or delete an object in S3",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "bucket": { "type": "string" },
+          "action": { "type": "string", "enum": ["list", "get", "put", "delete"] },
+          "key": { "type": "string", "description": "Object key (required for get/put/delete)" },
+          "content": { "type": "string", "description": "Content to upload (for put)" },
+          "prefix": { "type": "string", "description": "Prefix filter (for list)" }
+        },
+        "required": ["bucket", "action"]
+      }
+    },
+    {
+      "name": "list_eks_clusters",
+      "description": "List EKS clusters in a region",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "region": { "type": "string" }
+        }
+      }
+    },
+    {
+      "name": "describe_eks_cluster",
+      "description": "Get detailed information about an EKS cluster including version, status, and endpoint",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "clusterName": { "type": "string" },
+          "region": { "type": "string" }
+        },
+        "required": ["clusterName"]
+      }
+    },
+    {
+      "name": "list_rds_instances",
+      "description": "List RDS database instances in a region",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "region": { "type": "string" }
+        }
+      }
+    },
+    {
+      "name": "get_cloudwatch_metrics",
+      "description": "Get CloudWatch metric statistics for a namespace and metric over a time window",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "namespace": { "type": "string", "description": "e.g. AWS/EC2, AWS/RDS" },
+          "metricName": { "type": "string", "description": "e.g. CPUUtilization" },
+          "dimensionName": { "type": "string", "description": "e.g. InstanceId" },
+          "dimensionValue": { "type": "string" },
+          "minutes": { "type": "number", "description": "Look-back window in minutes (default 60)" },
+          "region": { "type": "string" }
+        },
+        "required": ["namespace", "metricName", "dimensionName", "dimensionValue"]
+      }
+    }
+  ],
+  "secrets": ["aws/access-key-id", "aws/secret-access-key", "aws/region"],
+  "port": 3000
+}

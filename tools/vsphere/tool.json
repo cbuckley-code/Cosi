@@ -1,0 +1,68 @@
+{
+  "name": "vsphere",
+  "description": "VMware vSphere infrastructure management — VMs, hosts, datastores, and resource pools via the vSphere REST API",
+  "version": "1.0.0",
+  "enabled": false,
+  "tools": [
+    {
+      "name": "list_vms",
+      "description": "List all virtual machines in vSphere, optionally filtered by power state or name",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "powerState": { "type": "string", "enum": ["POWERED_ON", "POWERED_OFF", "SUSPENDED"] },
+          "nameFilter": { "type": "string", "description": "Filter VMs by name (substring match)" }
+        }
+      }
+    },
+    {
+      "name": "get_vm",
+      "description": "Get detailed information about a specific virtual machine",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "vmId": { "type": "string", "description": "VM identifier (e.g. vm-123)" }
+        },
+        "required": ["vmId"]
+      }
+    },
+    {
+      "name": "manage_vm_power",
+      "description": "Power on, power off, suspend, or reset a virtual machine",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "vmId": { "type": "string" },
+          "action": { "type": "string", "enum": ["start", "stop", "suspend", "reset"] }
+        },
+        "required": ["vmId", "action"]
+      }
+    },
+    {
+      "name": "list_hosts",
+      "description": "List all ESXi hosts in the vSphere environment",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "list_datastores",
+      "description": "List all datastores with capacity and free space information",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "list_resource_pools",
+      "description": "List resource pools in the vSphere inventory",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  ],
+  "secrets": ["vsphere/server", "vsphere/username", "vsphere/password"],
+  "port": 3000
+}

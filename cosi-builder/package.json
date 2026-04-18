@@ -5,11 +5,16 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "node --watch src/index.js"
+    "dev": "node --watch src/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "dockerode": "^4.0.0",
     "js-yaml": "^4.1.0",
     "simple-git": "^3.27.0"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.9"
   }
 }

@@ -1,26 +1,23 @@
 import { defineConfig } from "vitest/config";
 
+// Unit tests — no Redis or Docker required.
+// Run with: npm run test:unit
 export default defineConfig({
   test: {
     globals: true,
     environment: "node",
-    globalSetup: "./tests/global-setup.js",
-    include: ["tests/integration/**/*.test.js"],
-    testTimeout: 30000,
-    hookTimeout: 30000,
-    // Run test files sequentially — integration tests share Redis state
+    include: ["tests/unit/**/*.test.js"],
+    testTimeout: 15000,
     pool: "forks",
     poolOptions: {
       forks: { singleFork: true },
     },
     env: {
-      REDIS_URL: "redis://localhost:6399",
       TOOLS_DIR: "/tmp/cosi-test-tools",
+      SECRETS_PATH: "/tmp/cosi-test-secrets.env",
       AWS_REGION: "us-east-1",
       AWS_ACCESS_KEY_ID: "test",
       AWS_SECRET_ACCESS_KEY: "test",
-      BEDROCK_MODEL_ID: "test-model",
-      SECRETS_PATH: "/tmp/cosi-test-secrets.env",
     },
   },
 });

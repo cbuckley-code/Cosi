@@ -5,11 +5,13 @@ on:
     branches: [main]
     paths:
       - 'cosi-orchestrator/**'
+      - 'cosi-builder/**'
       - '.github/workflows/integration-tests.yml'
   pull_request:
     branches: [main]
     paths:
       - 'cosi-orchestrator/**'
+      - 'cosi-builder/**'
       - '.github/workflows/integration-tests.yml'
   workflow_dispatch:
 
@@ -39,11 +41,22 @@ jobs:
           cache: 'npm'
           cache-dependency-path: cosi-orchestrator/package-lock.json
 
-      - name: Install dependencies
+      - name: Install orchestrator dependencies
         working-directory: cosi-orchestrator
         run: npm install
 
-      - name: Run integration tests
+      - name: Install builder dependencies
+        working-directory: cosi-builder
+        run: npm install
+
+      - name: Run orchestrator unit tests
+        working-directory: cosi-orchestrator
+        run: npm run test:unit
+        env:
+          TOOLS_DIR: /tmp/cosi-test-tools
+          SECRETS_PATH: /tmp/cosi-test-secrets.env
+
+      - name: Run orchestrator integration tests
         working-directory: cosi-orchestrator
         run: npm test
         env:
@@ -54,3 +67,8 @@ jobs:
           AWS_REGION: us-east-1
           BEDROCK_MODEL_ID: test-model
           TOOLS_DIR: /tmp/cosi-test-tools
+          SECRETS_PATH: /tmp/cosi-test-secrets.env
+
+      - name: Run builder unit tests
+        working-directory: cosi-builder
+        run: npm test

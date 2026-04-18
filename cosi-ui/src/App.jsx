@@ -6,9 +6,11 @@ import Icon from "@cloudscape-design/components/icon";
 import StatusIndicator from "@cloudscape-design/components/status-indicator";
 import Chat from "./components/Chat.jsx";
 import Settings from "./components/Settings.jsx";
+import Cositas from "./components/Cositas.jsx";
 
 const NAV_ITEMS = [
   { type: "link", text: <><Icon name="search-gen-ai" /> Chat</>, href: "#chat" },
+  { type: "link", text: <><Icon name="grid-view" /> Cositas</>, href: "#cositas" },
   { type: "divider" },
   { type: "link", text: <><Icon name="settings" /> Settings</>, href: "#settings" },
 ];
@@ -17,6 +19,7 @@ function useActiveView() {
   const getView = () => {
     const hash = window.location.hash;
     if (hash === "#settings") return "settings";
+    if (hash === "#cositas") return "cositas";
     return "chat";
   };
 
@@ -55,7 +58,10 @@ export default function App() {
   const activeView = useActiveView();
   const healthy = useHealthStatus();
 
-  const content = activeView === "settings" ? <Settings /> : <Chat />;
+  const content =
+    activeView === "settings" ? <Settings /> :
+    activeView === "cositas" ? <Cositas /> :
+    <Chat />;
 
   return (
     <AppLayout

@@ -36,24 +36,16 @@ const GOVCLOUD_REGIONS = [
 
 const BEDROCK_MODELS = [
   {
-    label: "Claude Sonnet 4 (anthropic.claude-sonnet-4-20250514-v1:0)",
-    value: "anthropic.claude-sonnet-4-20250514-v1:0",
+    label: "Claude Sonnet 4.6 (us.anthropic.claude-sonnet-4-6)",
+    value: "us.anthropic.claude-sonnet-4-6",
   },
   {
-    label: "Claude Opus 4 (anthropic.claude-opus-4-20250514-v1:0)",
-    value: "anthropic.claude-opus-4-20250514-v1:0",
+    label: "Claude Opus 4.7 (us.anthropic.claude-opus-4-7)",
+    value: "us.anthropic.claude-opus-4-7",
   },
   {
-    label: "Claude Haiku 3.5 (anthropic.claude-haiku-3-5-20241022-v1:0)",
-    value: "anthropic.claude-haiku-3-5-20241022-v1:0",
-  },
-  {
-    label: "Claude Sonnet 3.7 (anthropic.claude-3-7-sonnet-20250219-v1:0)",
-    value: "anthropic.claude-3-7-sonnet-20250219-v1:0",
-  },
-  {
-    label: "Claude Sonnet 3.5 (anthropic.claude-3-5-sonnet-20241022-v2:0)",
-    value: "anthropic.claude-3-5-sonnet-20241022-v2:0",
+    label: "Claude Haiku 4.5 (us.anthropic.claude-haiku-4-5)",
+    value: "us.anthropic.claude-haiku-4-5",
   },
   {
     label: "Amazon Nova Pro (amazon.nova-pro-v1:0)",
@@ -128,14 +120,13 @@ export default function Settings() {
           </SpaceBetween>
         </Container>
 
-        <Container header={<Header variant="h2">AWS Configuration</Header>}>
+        <Container header={<Header variant="h2">Bedrock Configuration</Header>}>
           <SpaceBetween size="m">
             <FormField label="AWS GovCloud" description="Enable to use AWS GovCloud regions">
               <Toggle
                 checked={localSettings.awsGovCloud}
                 onChange={({ detail }) => {
                   update("awsGovCloud", detail.checked);
-                  // Reset region to first option when toggling
                   const regions = detail.checked ? GOVCLOUD_REGIONS : AWS_REGIONS;
                   update("awsRegion", regions[0].value);
                 }}
@@ -156,7 +147,7 @@ export default function Settings() {
 
             <FormField
               label="Bedrock Model"
-              description="The LLM model used for builder and user chat"
+              description="The LLM model used for chat and tool generation"
             >
               <Select
                 selectedOption={selectedModel}
@@ -164,19 +155,6 @@ export default function Settings() {
                   update("bedrockModelId", detail.selectedOption.value)
                 }
                 options={BEDROCK_MODELS}
-              />
-            </FormField>
-
-            <FormField
-              label="AWS Secrets Manager Prefix"
-              description="Prefix for tool secrets in AWS Secrets Manager (e.g., cosi/tools/)"
-            >
-              <Input
-                value={localSettings.awsSecretPrefix}
-                onChange={({ detail }) =>
-                  update("awsSecretPrefix", detail.value)
-                }
-                placeholder="cosi/"
               />
             </FormField>
           </SpaceBetween>

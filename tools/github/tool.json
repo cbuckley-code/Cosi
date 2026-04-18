@@ -1,0 +1,15 @@
+{
+  "name": "github",
+  "description": "GitHub CLI (gh) for managing repos, issues, PRs, Actions, releases, and raw API calls.",
+  "enabled": false,
+  "tools": [
+    {
+      "name": "gh",
+      "description": "Run any gh CLI command."
+    }
+  ],
+  "secrets": [
+    "github/token",
+    "github/hostname"
+  ]
+}

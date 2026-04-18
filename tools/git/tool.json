@@ -1,0 +1,29 @@
+{
+  "name": "git",
+  "description": "Git repository operations via the git CLI — clone, pull, push, log, diff, branch management, and more. Supports HTTPS (username + token) and SSH key authentication.",
+  "version": "1.0.0",
+  "enabled": false,
+  "tools": [
+    {
+      "name": "git",
+      "description": "Run any git command. Pass all arguments after 'git' as an array. Supports stdin for git apply / git am.\n\nExamples:\n- Clone repo: [\"clone\", \"https://github.com/org/repo.git\", \"/workspace/repo\"]\n- Status: [\"-C\", \"/workspace/repo\", \"status\"]\n- Pull: [\"-C\", \"/workspace/repo\", \"pull\", \"origin\", \"main\"]\n- Log: [\"-C\", \"/workspace/repo\", \"log\", \"--oneline\", \"-20\"]\n- Diff: [\"-C\", \"/workspace/repo\", \"diff\", \"HEAD~1\"]\n- Create branch: [\"-C\", \"/workspace/repo\", \"checkout\", \"-b\", \"feature/my-feature\"]\n- Push: [\"-C\", \"/workspace/repo\", \"push\", \"origin\", \"HEAD\"]",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "args": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "git arguments, e.g. [\"-C\", \"/path/to/repo\", \"log\", \"--oneline\", \"-10\"]"
+          },
+          "stdin": {
+            "type": "string",
+            "description": "Optional content to pipe to git (for git apply, git am)"
+          }
+        },
+        "required": ["args"]
+      }
+    }
+  ],
+  "secrets": ["git/username", "git/token", "git/user-name", "git/user-email", "git/ssh-key"],
+  "port": 3000
+}

@@ -2,13 +2,13 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    globals: true,
+    globals: false,
     environment: "node",
     globalSetup: "./tests/global-setup.js",
-    include: ["tests/integration/**/*.test.js"],
+    include: ["tests/**/*.test.js"],
     testTimeout: 30000,
     hookTimeout: 30000,
-    // Run test files sequentially — integration tests share Redis state
+    // Sequential execution — integration tests share Redis state
     pool: "forks",
     poolOptions: {
       forks: { singleFork: true },
@@ -20,6 +20,7 @@ export default defineConfig({
       AWS_ACCESS_KEY_ID: "test",
       AWS_SECRET_ACCESS_KEY: "test",
       BEDROCK_MODEL_ID: "test-model",
+      STORAGE_MODE: "filesystem",
     },
   },
 });

@@ -1,0 +1,82 @@
+name: Tests
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  orchestrator:
+    name: Orchestrator (unit + integration)
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6399:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: cosi-orchestrator/package-lock.json
+
+      - run: npm ci
+        working-directory: cosi-orchestrator
+
+      - run: npm test
+        working-directory: cosi-orchestrator
+        env:
+          CI: true
+          REDIS_URL: redis://localhost:6399
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+          AWS_REGION: us-east-1
+          BEDROCK_MODEL_ID: test-model
+          TOOLS_DIR: /tmp/cosi-test-tools
+          STORAGE_MODE: filesystem
+
+  builder:
+    name: Builder (unit + integration)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: cosi-builder/package-lock.json
+
+      - run: npm ci
+        working-directory: cosi-builder
+
+      - run: npm test
+        working-directory: cosi-builder
+
+  ui:
+    name: UI (components + hooks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: cosi-ui/package-lock.json
+
+      - run: npm ci
+        working-directory: cosi-ui
+
+      - run: npm test
+        working-directory: cosi-ui

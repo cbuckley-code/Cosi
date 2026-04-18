@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 
 const DEFAULT_SETTINGS = {
-  storageMode: "git",
+  storageMode: "filesystem",
   gitRepoUrl: "",
   gitBranch: "main",
   awsRegion: "us-west-2",

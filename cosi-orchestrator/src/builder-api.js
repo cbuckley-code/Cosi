@@ -255,7 +255,7 @@ router.get("/settings", async (req, res) => {
     const raw = await fs.readFile(SETTINGS_PATH, "utf8").catch(() => "{}");
     const settings = JSON.parse(raw);
     res.json({
-      storageMode: settings.storageMode || process.env.STORAGE_MODE || "git",
+      storageMode: settings.storageMode || process.env.STORAGE_MODE || "filesystem",
       gitRepoUrl: settings.gitRepoUrl || process.env.GIT_REPO_URL || "",
       gitBranch: settings.gitBranch || process.env.GIT_BRANCH || "main",
       awsRegion: settings.awsRegion || process.env.AWS_REGION || "us-west-2",

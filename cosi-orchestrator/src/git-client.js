@@ -17,7 +17,7 @@ export async function configureGit() {
 }
 
 export function isGitMode() {
-  return (process.env.STORAGE_MODE || "git") === "git";
+  return (process.env.STORAGE_MODE || "filesystem") === "git";
 }
 
 export async function commitAndPush(toolName, message) {

@@ -1,37 +1,58 @@
-import { SecretsManagerClient, GetSecretValueCommand } from "@aws-sdk/client-secrets-manager";
+import fs from "fs/promises";
 
-let client = null;
+const SECRETS_FILE = process.env.SECRETS_FILE || "/app/secrets.env";
 
-function getClient() {
-  if (!client) {
-    client = new SecretsManagerClient({ region: process.env.AWS_REGION || "us-west-2" });
+function parse(content) {
+  const out = {};
+  for (const line of content.split("\n")) {
+    const t = line.trim();
+    if (!t || t.startsWith("#")) continue;
+    const eq = t.indexOf("=");
+    if (eq === -1) continue;
+    out[t.slice(0, eq).trim()] = t.slice(eq + 1);
   }
-  return client;
+  return out;
 }
 
-export function reinitialize() {
-  client = new SecretsManagerClient({ region: process.env.AWS_REGION || "us-west-2" });
+async function read() {
+  try {
+    return parse(await fs.readFile(SECRETS_FILE, "utf8"));
+  } catch {
+    return {};
+  }
 }
 
-export async function getSecret(secretId) {
-  const command = new GetSecretValueCommand({ SecretId: secretId });
-  const response = await getClient().send(command);
-  return response.SecretString;
+async function write(secrets) {
+  const lines = Object.entries(secrets).map(([k, v]) => `${k}=${v}`);
+  await fs.writeFile(SECRETS_FILE, lines.join("\n") + (lines.length ? "\n" : ""), "utf8");
+}
+
+export async function getSecret(name) {
+  return (await read())[name] ?? null;
+}
+
+export async function setSecret(name, value) {
+  const secrets = await read();
+  secrets[name] = value;
+  await write(secrets);
+}
+
+export async function deleteSecret(name) {
+  const secrets = await read();
+  delete secrets[name];
+  await write(secrets);
+}
+
+export async function listSecretNames() {
+  return Object.keys(await read());
 }
 
 export async function getToolSecrets(toolName, secretNames) {
-  const secrets = {};
-  const prefix = process.env.AWS_SECRET_PREFIX || "cosi/";
-
+  const all = await read();
+  const out = {};
   for (const name of secretNames) {
-    const path = `${prefix}${toolName}/${name}`;
-    try {
-      secrets[name] = await getSecret(path);
-    } catch (err) {
-      console.warn(`[secrets] Could not fetch secret ${path}: ${err.message}`);
-      secrets[name] = null;
-    }
+    const envKey = `COSI_SECRET_${name.replace(/[/\-]/g, "_").toUpperCase()}`;
+    out[name] = all[envKey] ?? null;
   }
-
-  return secrets;
+  return out;
 }

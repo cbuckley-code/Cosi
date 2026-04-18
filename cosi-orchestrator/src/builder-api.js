@@ -8,6 +8,7 @@ import { getToolList, loadRegistry } from "./registry.js";
 import { appendMessages, deleteSession } from "./session-store.js";
 import { maybeCompact, buildContextMessages } from "./session-compaction.js";
 import { buildUserContent } from "./attachments.js";
+import { setSecret, deleteSecret, listSecretNames } from "./secrets.js";
 import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -261,8 +262,6 @@ router.get("/settings", async (req, res) => {
         settings.bedrockModelId ||
         process.env.BEDROCK_MODEL_ID ||
         "us.anthropic.claude-sonnet-4-6",
-      awsSecretPrefix:
-        settings.awsSecretPrefix || process.env.AWS_SECRET_PREFIX || "cosi/",
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -279,15 +278,53 @@ router.post("/settings", async (req, res) => {
 
     if (settings.awsRegion) process.env.AWS_REGION = settings.awsRegion;
     if (settings.bedrockModelId) process.env.BEDROCK_MODEL_ID = settings.bedrockModelId;
-    if (settings.awsSecretPrefix) process.env.AWS_SECRET_PREFIX = settings.awsSecretPrefix;
     if (settings.gitRepoUrl) process.env.GIT_REPO_URL = settings.gitRepoUrl;
     if (settings.gitBranch) process.env.GIT_BRANCH = settings.gitBranch;
 
     const { reinitialize: reinitBedrock } = await import("./bedrock-client.js");
-    const { reinitialize: reinitSecrets } = await import("./secrets.js");
     reinitBedrock();
-    reinitSecrets();
 
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /api/secrets — list secret names (values never returned)
+ */
+router.get("/secrets", async (req, res) => {
+  try {
+    const names = await listSecretNames();
+    res.json({ secrets: names });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/secrets — add or update a secret
+ * Body: { name: "COSI_SECRET_API_KEY", value: "..." }
+ */
+router.post("/secrets", async (req, res) => {
+  const { name, value } = req.body;
+  if (!name || value === undefined) {
+    return res.status(400).json({ error: "name and value are required" });
+  }
+  try {
+    await setSecret(name, value);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * DELETE /api/secrets/:name — remove a secret
+ */
+router.delete("/secrets/:name", async (req, res) => {
+  try {
+    await deleteSecret(req.params.name);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

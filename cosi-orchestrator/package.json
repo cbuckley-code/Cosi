@@ -11,7 +11,6 @@
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.700.0",
-    "@aws-sdk/client-secrets-manager": "^3.700.0",
     "@modelcontextprotocol/sdk": "^1.12.0",
     "express": "^4.21.0",
     "handlebars": "^4.7.8",

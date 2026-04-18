@@ -38,11 +38,11 @@ services:
     volumes:
       - ./tools:/app/tools
       - ./:/app/repo
+      - ./secrets.env:/app/secrets.env
       - ~/.ssh/id_ed25519_github:/root/.ssh/id_ed25519_github:ro
       - ~/.ssh/id_ed25519_github.pub:/root/.ssh/id_ed25519_github.pub:ro
     environment:
       - AWS_REGION=${AWS_REGION:-us-west-2}
-      - AWS_SECRET_PREFIX=${AWS_SECRET_PREFIX:-cosi/}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - BEDROCK_MODEL_ID=${BEDROCK_MODEL_ID:-us.anthropic.claude-sonnet-4-6}
@@ -54,6 +54,7 @@ services:
       - BUILDER_URL=http://cosi-builder:3001
       - REPO_DIR=/app/repo
       - TOOLS_DIR=/app/repo/tools
+      - SECRETS_FILE=/app/secrets.env
     depends_on:
       redis:
         condition: service_healthy
@@ -68,6 +69,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./:/workspace
+      - ./secrets.env:/workspace/secrets.env
       - ~/.ssh/id_ed25519_github:/root/.ssh/id_ed25519_github:ro
       - ~/.ssh/id_ed25519_github.pub:/root/.ssh/id_ed25519_github.pub:ro
     privileged: true

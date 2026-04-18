@@ -77,15 +77,14 @@ export async function updateCompose(workspace) {
   // Bring up new/changed services
   if (Object.keys(services).length > 0) {
     try {
+      const secretsFile = path.join(workspace, "secrets.env");
+      const hasSecrets = await fs.access(secretsFile).then(() => true).catch(() => false);
+
       await execAsync("docker", [
-        "compose",
-        "-p",
-        "cosi",
-        "-f",
-        composePath,
-        "up",
-        "-d",
-        "--no-deps",
+        "compose", "-p", "cosi",
+        "-f", composePath,
+        ...(hasSecrets ? ["--env-file", secretsFile] : []),
+        "up", "-d", "--no-deps",
       ]);
       console.log("[compose-manager] docker compose up -d completed");
     } catch (err) {

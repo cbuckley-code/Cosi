@@ -32,7 +32,7 @@ spec:
       {{- end }}
       containers:
         - name: redis
-          image: {{ .Values.redis.image.repository }}:{{ .Values.redis.image.tag }}
+          image: {{ include "cosi.image" (dict "image" .Values.redis.image "global" .Values.global "appVersion" .Chart.AppVersion) }}
           imagePullPolicy: {{ .Values.redis.image.pullPolicy }}
           {{- with .Values.redis.securityContext }}
           securityContext:

@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   redis:
-    image: redis:7-alpine
+    image: ${BASE_REGISTRY:-}redis:7-alpine
     container_name: cosi-redis
     networks:
       - cosi-network
@@ -19,6 +19,10 @@ services:
   nginx:
     build:
       context: ./cosi-ui
+      args:
+        REGISTRY: ${BASE_REGISTRY:-}
+        NPM_CONFIG_REGISTRY: ${NPM_CONFIG_REGISTRY:-}
+    image: ${IMAGE_REGISTRY:-}cosi-ui:${IMAGE_TAG:-latest}
     container_name: cosi-nginx
     ports:
       - "8443:443"
@@ -32,6 +36,10 @@ services:
   orchestrator:
     build:
       context: ./cosi-orchestrator
+      args:
+        REGISTRY: ${BASE_REGISTRY:-}
+        NPM_CONFIG_REGISTRY: ${NPM_CONFIG_REGISTRY:-}
+    image: ${IMAGE_REGISTRY:-}cosi-orchestrator:${IMAGE_TAG:-latest}
     container_name: cosi-orchestrator
     networks:
       - cosi-network
@@ -55,6 +63,10 @@ services:
   builder:
     build:
       context: ./cosi-builder
+      args:
+        REGISTRY: ${BASE_REGISTRY:-}
+        NPM_CONFIG_REGISTRY: ${NPM_CONFIG_REGISTRY:-}
+    image: ${IMAGE_REGISTRY:-}cosi-builder:${IMAGE_TAG:-latest}
     container_name: cosi-builder
     networks:
       - cosi-network

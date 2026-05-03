@@ -1,4 +1,8 @@
-FROM node:20-alpine
+# ARG REGISTRY lets you redirect the base image to an internal mirror:
+#   docker build --build-arg REGISTRY=my.registry.local/ .
+ARG REGISTRY=""
+FROM ${REGISTRY}node:20-alpine
+ARG NPM_CONFIG_REGISTRY
 WORKDIR /app
 COPY package.json ./
 RUN npm install

@@ -1,9 +1,14 @@
-FROM node:20-slim
+ARG REGISTRY=""
+FROM ${REGISTRY}node:20-slim
+
+# ARG AZURE_CLI_REPO lets you point to an internal mirror of packages.microsoft.com.
+ARG NPM_CONFIG_REGISTRY
+ARG AZURE_CLI_REPO=https://packages.microsoft.com
 
 # Azure CLI
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates apt-transport-https gnupg lsb-release \
-    && curl -sLS https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /etc/apt/keyrings/microsoft.gpg \
-    && echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/azure-cli/ $(lsb_release -cs) main" \
+    && curl -sLS ${AZURE_CLI_REPO}/keys/microsoft.asc | gpg --dearmor -o /etc/apt/keyrings/microsoft.gpg \
+    && echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/microsoft.gpg] ${AZURE_CLI_REPO}/repos/azure-cli/ $(lsb_release -cs) main" \
        > /etc/apt/sources.list.d/azure-cli.list \
     && apt-get update && apt-get install -y azure-cli \
     && apt-get clean && rm -rf /var/lib/apt/lists/*

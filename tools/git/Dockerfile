@@ -1,5 +1,7 @@
-FROM node:20-alpine
+ARG REGISTRY=""
+FROM ${REGISTRY}node:20-alpine
 
+ARG NPM_CONFIG_REGISTRY
 RUN apk add --no-cache git openssh-client
 
 WORKDIR /app

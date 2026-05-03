@@ -1,5 +1,10 @@
+# ARG REGISTRY lets you redirect base images to an internal mirror:
+#   docker build --build-arg REGISTRY=my.registry.local/ .
+ARG REGISTRY=""
+
 # Stage 1: Build React app
-FROM node:20-alpine AS builder
+FROM ${REGISTRY}node:20-alpine AS builder
+ARG NPM_CONFIG_REGISTRY
 WORKDIR /app
 COPY package.json ./
 RUN npm install
@@ -7,7 +12,7 @@ COPY . .
 RUN npm run build
 
 # Stage 2: nginx with built assets and TLS
-FROM nginx:alpine
+FROM ${REGISTRY}nginx:alpine
 
 # Copy built React app
 COPY --from=builder /app/dist /usr/share/nginx/html

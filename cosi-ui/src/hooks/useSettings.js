@@ -1,12 +1,33 @@
 import { useState, useEffect, useCallback } from "react";
 
 const DEFAULT_SETTINGS = {
-  gitRepoUrl: "",
-  gitBranch: "main",
+  aiProvider: "bedrock",
+
+  // AWS Bedrock
+  storageMode: "filesystem",
   awsRegion: "us-west-2",
   awsGovCloud: false,
-  bedrockModelId: "anthropic.claude-sonnet-4-20250514-v1:0",
-  awsSecretPrefix: "cosi/",
+  bedrockModelId: "us.anthropic.claude-sonnet-4-6",
+
+  // Anthropic API
+  anthropicModelId: "claude-sonnet-4-6",
+
+  // Azure OpenAI
+  azureOpenAiEndpoint: "",
+  azureOpenAiDeployment: "gpt-4o",
+  azureOpenAiApiVersion: "2025-01-01-preview",
+
+  // Google Vertex AI
+  vertexModelId: "gemini-2.0-flash",
+
+  // OCI Generative AI
+  ociGenAiEndpoint: "https://inference.generativeai.us-chicago-1.oci.oraclecloud.com",
+  ociCompartmentId: "",
+  ociModelId: "meta.llama-3.3-70b-instruct",
+
+  // Git
+  gitRepoUrl: "",
+  gitBranch: "main",
 };
 
 export function useSettings() {
@@ -56,13 +77,5 @@ export function useSettings() {
     loadSettings();
   }, [loadSettings]);
 
-  return {
-    settings,
-    loading,
-    saving,
-    error,
-    saveSuccess,
-    saveSettings,
-    reloadSettings: loadSettings,
-  };
+  return { settings, loading, saving, error, saveSuccess, saveSettings, reloadSettings: loadSettings };
 }

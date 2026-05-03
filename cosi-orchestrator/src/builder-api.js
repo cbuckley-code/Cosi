@@ -2,7 +2,6 @@ import express from "express";
 import { v4 as uuidv4 } from "uuid";
 import { chatStream } from "./bedrock-client.js";
 import { generateTool, writeToolFiles, toolExists } from "./tool-generator.js";
-import { validateGeneratedTool } from "./tool-validator.js";
 import { commitAndPush, isGitMode } from "./git-client.js";
 import { getToolList, loadRegistry, getLibrary } from "./registry.js";
 import { setSecret, deleteSecret, listSecretNames } from "./secrets.js";
@@ -219,17 +218,36 @@ router.get("/tools/:name/logs", async (req, res) => {
 router.get("/settings", async (req, res) => {
   try {
     const raw = await fs.readFile(SETTINGS_PATH, "utf8").catch(() => "{}");
-    const settings = JSON.parse(raw);
+    const s = JSON.parse(raw);
     res.json({
-      storageMode: settings.storageMode || process.env.STORAGE_MODE || "filesystem",
-      gitRepoUrl: settings.gitRepoUrl || process.env.GIT_REPO_URL || "",
-      gitBranch: settings.gitBranch || process.env.GIT_BRANCH || "main",
-      awsRegion: settings.awsRegion || process.env.AWS_REGION || "us-west-2",
-      awsGovCloud: settings.awsGovCloud || process.env.AWS_GOVCLOUD === "true" || false,
-      bedrockModelId:
-        settings.bedrockModelId ||
-        process.env.BEDROCK_MODEL_ID ||
-        "us.anthropic.claude-sonnet-4-6",
+      // AI provider selection
+      aiProvider: s.aiProvider || process.env.AI_PROVIDER || "bedrock",
+
+      // AWS Bedrock
+      storageMode:     s.storageMode     || process.env.STORAGE_MODE    || "filesystem",
+      awsRegion:       s.awsRegion       || process.env.AWS_REGION       || "us-west-2",
+      awsGovCloud:     s.awsGovCloud     || process.env.AWS_GOVCLOUD === "true" || false,
+      bedrockModelId:  s.bedrockModelId  || process.env.BEDROCK_MODEL_ID || "us.anthropic.claude-sonnet-4-6",
+
+      // Anthropic API
+      anthropicModelId: s.anthropicModelId || process.env.ANTHROPIC_MODEL_ID || "claude-sonnet-4-6",
+
+      // Azure OpenAI
+      azureOpenAiEndpoint:   s.azureOpenAiEndpoint   || process.env.AZURE_OPENAI_ENDPOINT    || "",
+      azureOpenAiDeployment: s.azureOpenAiDeployment || process.env.AZURE_OPENAI_DEPLOYMENT  || "gpt-4o",
+      azureOpenAiApiVersion: s.azureOpenAiApiVersion || process.env.AZURE_OPENAI_API_VERSION || "2025-01-01-preview",
+
+      // Google Vertex AI
+      vertexModelId: s.vertexModelId || process.env.VERTEX_MODEL_ID || "gemini-2.0-flash",
+
+      // OCI Generative AI
+      ociGenAiEndpoint:  s.ociGenAiEndpoint  || process.env.OCI_GENAI_ENDPOINT || "https://inference.generativeai.us-chicago-1.oci.oraclecloud.com",
+      ociCompartmentId:  s.ociCompartmentId  || process.env.OCI_COMPARTMENT_ID || "",
+      ociModelId:        s.ociModelId        || process.env.OCI_MODEL_ID        || "meta.llama-3.3-70b-instruct",
+
+      // Git
+      gitRepoUrl: s.gitRepoUrl || process.env.GIT_REPO_URL || "",
+      gitBranch:  s.gitBranch  || process.env.GIT_BRANCH   || "main",
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -244,14 +262,30 @@ router.post("/settings", async (req, res) => {
     const settings = req.body;
     await fs.writeFile(SETTINGS_PATH, JSON.stringify(settings, null, 2), "utf8");
 
-    if (settings.storageMode) process.env.STORAGE_MODE = settings.storageMode;
-    if (settings.awsRegion) process.env.AWS_REGION = settings.awsRegion;
-    if (settings.bedrockModelId) process.env.BEDROCK_MODEL_ID = settings.bedrockModelId;
-    if (settings.gitRepoUrl) process.env.GIT_REPO_URL = settings.gitRepoUrl;
-    if (settings.gitBranch) process.env.GIT_BRANCH = settings.gitBranch;
+    // AI provider
+    if (settings.aiProvider)          process.env.AI_PROVIDER             = settings.aiProvider;
+    // Bedrock
+    if (settings.awsRegion)           process.env.AWS_REGION               = settings.awsRegion;
+    if (settings.bedrockModelId)      process.env.BEDROCK_MODEL_ID         = settings.bedrockModelId;
+    if (settings.storageMode)         process.env.STORAGE_MODE             = settings.storageMode;
+    // Anthropic
+    if (settings.anthropicModelId)    process.env.ANTHROPIC_MODEL_ID       = settings.anthropicModelId;
+    // Azure OpenAI
+    if (settings.azureOpenAiEndpoint)   process.env.AZURE_OPENAI_ENDPOINT    = settings.azureOpenAiEndpoint;
+    if (settings.azureOpenAiDeployment) process.env.AZURE_OPENAI_DEPLOYMENT  = settings.azureOpenAiDeployment;
+    if (settings.azureOpenAiApiVersion) process.env.AZURE_OPENAI_API_VERSION = settings.azureOpenAiApiVersion;
+    // Vertex
+    if (settings.vertexModelId)       process.env.VERTEX_MODEL_ID          = settings.vertexModelId;
+    // OCI
+    if (settings.ociGenAiEndpoint)    process.env.OCI_GENAI_ENDPOINT        = settings.ociGenAiEndpoint;
+    if (settings.ociCompartmentId)    process.env.OCI_COMPARTMENT_ID        = settings.ociCompartmentId;
+    if (settings.ociModelId)          process.env.OCI_MODEL_ID              = settings.ociModelId;
+    // Git
+    if (settings.gitRepoUrl)          process.env.GIT_REPO_URL             = settings.gitRepoUrl;
+    if (settings.gitBranch)           process.env.GIT_BRANCH               = settings.gitBranch;
 
-    const { reinitialize: reinitBedrock } = await import("./bedrock-client.js");
-    reinitBedrock();
+    const { reinitialize } = await import("./ai-client.js");
+    await reinitialize();
 
     res.json({ success: true });
   } catch (err) {

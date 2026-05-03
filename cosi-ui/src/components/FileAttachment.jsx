@@ -10,13 +10,8 @@ function formatBytes(bytes) {
 }
 
 function FileIcon({ type }) {
-  if (type === "image") {
-    return <span style={{ fontSize: 20 }}>🖼</span>;
-  }
-  if (type === "document") {
-    return <span style={{ fontSize: 20 }}>📄</span>;
-  }
-  return <span style={{ fontSize: 20 }}>📎</span>;
+  const emoji = type === "image" ? "🖼" : type === "document" ? "📄" : "📎";
+  return <span style={{ fontSize: 20 }}>{emoji}</span>;
 }
 
 /**
@@ -29,10 +24,10 @@ export function AttachmentChip({ attachment, onRemove }) {
         display: "inline-flex",
         alignItems: "center",
         gap: 6,
-        background: "#1a2a3a",
-        border: "1px solid #37475a",
+        background: "var(--color-background-container-content, #192534)",
+        border: "1px solid var(--color-border-divider-default, #414d5c)",
         borderRadius: 6,
-        padding: "4px 6px 4px 8px",
+        padding: "4px 4px 4px 8px",
         maxWidth: 200,
       }}
     >
@@ -62,22 +57,12 @@ export function AttachmentChip({ attachment, onRemove }) {
         </Box>
       </div>
       {onRemove && (
-        <button
+        <Button
+          variant="icon"
+          iconName="close"
           onClick={() => onRemove(attachment.id)}
-          style={{
-            background: "none",
-            border: "none",
-            color: "#8d9093",
-            cursor: "pointer",
-            padding: "0 2px",
-            fontSize: 14,
-            lineHeight: 1,
-            flexShrink: 0,
-          }}
-          aria-label={`Remove ${attachment.name}`}
-        >
-          ✕
-        </button>
+          ariaLabel={`Remove ${attachment.name}`}
+        />
       )}
     </div>
   );
@@ -97,7 +82,7 @@ export function MessageAttachment({ attachment }) {
             maxWidth: "100%",
             maxHeight: 400,
             borderRadius: 6,
-            border: "1px solid #37475a",
+            border: "1px solid var(--color-border-divider-default, #414d5c)",
             display: "block",
           }}
         />
@@ -114,8 +99,8 @@ export function MessageAttachment({ attachment }) {
         display: "inline-flex",
         alignItems: "center",
         gap: 8,
-        background: "#1a2a3a",
-        border: "1px solid #37475a",
+        background: "var(--color-background-container-content, #192534)",
+        border: "1px solid var(--color-border-divider-default, #414d5c)",
         borderRadius: 6,
         padding: "6px 10px",
         marginTop: 8,
@@ -148,8 +133,8 @@ export function DragOverlay({ visible }) {
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        background: "rgba(15, 27, 45, 0.88)",
-        border: "2px dashed #0972d3",
+        background: "color-mix(in srgb, var(--color-background-layout-main, #0f1b2d) 88%, transparent)",
+        border: "2px dashed var(--color-text-link-default, #539fe5)",
         borderRadius: 8,
         pointerEvents: "none",
       }}

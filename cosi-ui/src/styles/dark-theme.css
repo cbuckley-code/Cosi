@@ -1,5 +1,4 @@
-/* Cloudscape dark mode overrides and global styles */
-
+/* Global layout & resets */
 * {
   box-sizing: border-box;
 }
@@ -7,9 +6,8 @@
 body {
   margin: 0;
   padding: 0;
-  background-color: #0f1b2d;
-  color: #d1d5db;
-  font-family: "Amazon Ember", Arial, sans-serif;
+  /* Font and text colour are set by @cloudscape-design/global-styles */
+  background-color: var(--color-background-layout-main, #0f1b2d);
 }
 
 #root {
@@ -17,7 +15,8 @@ body {
   overflow: hidden;
 }
 
-/* Chat message styling */
+/* ── Chat layout ──────────────────────────────────────────────────────────── */
+
 .chat-container {
   display: flex;
   flex-direction: column;
@@ -36,11 +35,11 @@ body {
 
 .chat-input-area {
   padding: 16px;
-  border-top: 1px solid #232f3e;
-  background-color: #0f1b2d;
+  border-top: 1px solid var(--color-border-divider-default, #414d5c);
+  background-color: var(--color-background-layout-main, #0f1b2d);
 }
 
-/* Message bubbles */
+/* Message alignment */
 .message-user {
   align-self: flex-end;
   max-width: 70%;
@@ -51,35 +50,28 @@ body {
   max-width: 80%;
 }
 
-/* Tool call cards */
+/* ── Inline tool-call card (plain text fallback) ──────────────────────────── */
+
 .tool-call-card {
-  border: 1px solid #232f3e;
+  border: 1px solid var(--color-border-divider-default, #414d5c);
   border-radius: 8px;
   padding: 8px 12px;
-  background-color: #1a2a3a;
+  background-color: var(--color-background-container-content, #192534);
   font-family: monospace;
   font-size: 12px;
 }
 
-/* Status indicator */
-.status-indicator-healthy {
-  color: #29ab87;
-}
+/* ── Markdown rendering ───────────────────────────────────────────────────── */
 
-.status-indicator-unhealthy {
-  color: #d13212;
-}
-
-/* Markdown rendering */
 .markdown-content pre {
-  background-color: #232f3e;
+  background-color: var(--color-background-container-content, #192534);
   border-radius: 4px;
   padding: 12px;
   overflow-x: auto;
 }
 
 .markdown-content code {
-  background-color: #232f3e;
+  background-color: var(--color-background-container-content, #192534);
   padding: 2px 4px;
   border-radius: 3px;
   font-family: monospace;
@@ -91,20 +83,46 @@ body {
   padding: 0;
 }
 
-/* Scrollbar styling */
+/* ── Mic button listening state ───────────────────────────────────────────── */
+
+.mic-listening {
+  border-radius: 50%;
+  outline: 2px solid var(--color-text-status-error, #d13212);
+  outline-offset: 1px;
+  animation: mic-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes mic-pulse {
+  0%,
+  100% {
+    outline-width: 2px;
+    outline-color: var(--color-text-status-error, #d13212);
+  }
+  50% {
+    outline-width: 4px;
+    outline-color: color-mix(
+      in srgb,
+      var(--color-text-status-error, #d13212) 25%,
+      transparent
+    );
+  }
+}
+
+/* ── Scrollbar ────────────────────────────────────────────────────────────── */
+
 ::-webkit-scrollbar {
   width: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0f1b2d;
+  background: var(--color-background-layout-main, #0f1b2d);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #232f3e;
+  background: var(--color-border-divider-default, #414d5c);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #37475a;
+  background: var(--color-border-input-default, #5f6b7a);
 }

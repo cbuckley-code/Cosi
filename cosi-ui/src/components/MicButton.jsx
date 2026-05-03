@@ -1,4 +1,5 @@
 import React from "react";
+import Button from "@cloudscape-design/components/button";
 
 const MIC_SVG = (
   <svg
@@ -13,51 +14,19 @@ const MIC_SVG = (
   </svg>
 );
 
-/**
- * MicButton — icon button that toggles speech recognition.
- * Shows a red pulsing ring while listening.
- */
 export function MicButton({ isListening, disabled, onStart, onStop }) {
-  const handleClick = () => {
-    if (isListening) {
-      onStop();
-    } else {
-      onStart();
-    }
-  };
-
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      disabled={disabled}
-      aria-label={isListening ? "Stop dictation" : "Start dictation"}
-      title={isListening ? "Stop dictation" : "Dictate message"}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        width: 32,
-        height: 32,
-        padding: 0,
-        border: "none",
-        borderRadius: "50%",
-        cursor: disabled ? "not-allowed" : "pointer",
-        background: isListening ? "#c0392b" : "transparent",
-        color: isListening ? "#fff" : "var(--color-text-body-secondary, #8d9dab)",
-        outline: isListening ? "2px solid rgba(192,57,43,0.4)" : "none",
-        transition: "background 0.2s, color 0.2s, outline 0.2s",
-        animation: isListening ? "mic-pulse 1.4s ease-in-out infinite" : "none",
-        flexShrink: 0,
-      }}
+    <span
+      className={isListening ? "mic-listening" : undefined}
+      style={{ display: "inline-flex", flexShrink: 0 }}
     >
-      {MIC_SVG}
-      <style>{`
-        @keyframes mic-pulse {
-          0%, 100% { outline-width: 2px; outline-color: rgba(192,57,43,0.4); }
-          50%       { outline-width: 5px; outline-color: rgba(192,57,43,0.15); }
-        }
-      `}</style>
-    </button>
+      <Button
+        variant="icon"
+        iconSvg={MIC_SVG}
+        onClick={isListening ? onStop : onStart}
+        disabled={disabled}
+        ariaLabel={isListening ? "Stop dictation" : "Start dictation"}
+      />
+    </span>
   );
 }
